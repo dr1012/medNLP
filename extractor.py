@@ -32,15 +32,18 @@ def extract(filename):
 
 def simple_parse(text):
 
+    text = text.lower()
     stop_words = stop_word_list()
     #The word_tokenize() function will break our text phrases into #individual words
     tokens = word_tokenize(text)
     #we'll create a new list which contains punctuation we wish to clean
-    punctuations = ['(',')',';',':','[',']',',','.','-','\"','\'','{','}']
+    punctuations = ['(',')',';',':','[',']',',','.','-','\"','\'','{','}',' - ']
     #We initialize the stopwords variable which is a list of words like #"The", "I", "and", etc. that don't hold much value as keywords
     #We create a list comprehension which only returns a list of words #that are NOT IN stop_words and NOT IN punctuations.
     keywords = [word for word in tokens if not word in stop_words and not word in punctuations]
     return text, tokens, keywords
+
+
 
 def pdf_extract(filename):
 

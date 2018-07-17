@@ -13,6 +13,11 @@ def stop_word_list():
         if word not in nltk_stopwords:
             nltk_stopwords.append(word)
 
+    nltk_stopwords.append('Description')
+    nltk_stopwords.append('Diagnosis')
+    nltk_stopwords.append('description')
+    nltk_stopwords.append('diagnosis')
+    
     return nltk_stopwords        
 
 

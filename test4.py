@@ -1,4 +1,3 @@
-import time
-current_time = str(time.time())
-current_time = current_time.replace(".", "")
-print(current_time)
+import random
+color = "%06x" % random.randint(0, 0xFFFFFF)
+print(type(color))

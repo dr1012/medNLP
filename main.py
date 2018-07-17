@@ -20,7 +20,7 @@ app = Flask(__name__)
 UPLOAD_FOLDER = '/uploads'
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'zip', 'tar', 'rar', '7z', 'tgz', 'docx'])
 
-
+compressed_extensions = ['zip', 'tar', 'rar', '7z', 'tgz']
 
 
 app.config.from_object(Config)
@@ -71,15 +71,21 @@ def upload_file():
             flash('No selected file')
             return redirect(request.url)
         if file and allowed_file(file.filename):
+            
             filename = secure_filename(file.filename)
+
+            file_extension =  filename.rsplit('.', 1)[1].lower()
 
             if not os.path.exists('uploads'):
                 os.makedirs('uploads')
 
             file.save(os.path.join('uploads', filename))
+
+            if file_extension in compressed_extensions:
+                compressed_main(s.path.join('uploads', filename))
             
             text, tokens, keywords = extract(os.path.join('uploads', filename))
-            graph_data = frequency_dist(keywords, 35, ('Word frequency for file  with filename: ' + filename))
+            graph_data = frequency_dist(keywords, 26, ('Word frequency for file  with filename: ' + filename))
 
             current_time = str(time.time())
             current_time = current_time.replace(".", "")
@@ -93,14 +99,8 @@ def upload_file():
 
           
             
-            resp = make_response(render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, myfilename = myfilename))
-
-            resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-            resp.headers["Pragma"] = "no-cache"
-            resp.headers["Expires"] = "0"
-            resp.headers['Cache-Control'] = 'public, max-age=0'
+            return render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, myfilename = myfilename)
         
-            return resp
    
         else:
             flash('not an allowed file format')
@@ -122,7 +122,7 @@ def submit():
    
         text, tokens, keywords = simple_parse(text)
          
-        graph_data = frequency_dist(keywords, 70, ('Word frequency for input text'))
+        graph_data = frequency_dist(keywords, 26, ('Word frequency for input text'))
 
         current_time = str(time.time())
         current_time = current_time.replace(".", "")
@@ -134,14 +134,7 @@ def submit():
 
         myfilename = '/static/mycloud' + myextension + '.png'
     
-        resp = make_response(render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, myfilename = myfilename))
-
-        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        resp.headers["Pragma"] = "no-cache"
-        resp.headers["Expires"] = "0"
-        resp.headers['Cache-Control'] = 'public, max-age=0'
-
-        return resp
+        return render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, myfilename = myfilename)
 
 
 
