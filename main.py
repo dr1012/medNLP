@@ -1,6 +1,6 @@
 from flask import render_template, Flask, flash, redirect, request, url_for, send_from_directory, make_response
 from config import Config
-from forms import LoginForm, UploadFileForm, inputText
+from forms import LoginForm, UploadFileForm, inputText, inputTopicNumber
 from werkzeug.utils import secure_filename
 import os
 from extractor import extract, simple_parse
@@ -11,19 +11,26 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import urllib.parse
 import time
-
+from lda_tsne_model import lda_tsne
+from compressed_main import handle_compressed_file
+from flask import session
+import json
+import pickle
 
 
 
 app = Flask(__name__)
+#app.secret_key = b'\x8a\xf6\x1b\x81\xf2U\xc3p5K!a\x8c\x17\x82]'
+app.config['SECRET_KEY'] = 'A_g_reat-fuck_ing-secret'
+
 
 UPLOAD_FOLDER = '/uploads'
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'zip', 'tar', 'rar', '7z', 'tgz', 'docx'])
+ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'zip','rar', 'docx'])
 
-compressed_extensions = ['zip', 'tar', 'rar', '7z', 'tgz']
+compressed_extensions = ['zip', 'rar']
 
 
-app.config.from_object(Config)
+#app.config.from_object(Config)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
 
@@ -82,7 +89,19 @@ def upload_file():
             file.save(os.path.join('uploads', filename))
 
             if file_extension in compressed_extensions:
-                compressed_main(s.path.join('uploads', filename))
+                total_text, totalvocab_stemmed, totalvocab_tokenized, file_names = handle_compressed_file((os.path.join('uploads', filename)), filename)
+                
+                pickle.dump( total_text, open( "pickles/total_text.p", "wb" ) )
+                pickle.dump( file_names, open( "pickles/file_names.p", "wb" ) )
+
+
+               
+                if len(file_names)<4:
+                    flash('At least 4 files in the compressed folder are required')
+                    return redirect(url_for('upload_file'))
+                script, div = lda_tsne(total_text, file_names)
+                topic_number_form = inputTopicNumber()
+                return render_template('bulk_analysis.html', title = 'Clustering analysis', script = script, div= div, number_form = topic_number_form)
             
             text, tokens, keywords = extract(os.path.join('uploads', filename))
             graph_data = frequency_dist(keywords, 26, ('Word frequency for file  with filename: ' + filename))
@@ -99,7 +118,7 @@ def upload_file():
 
           
             
-            return render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, myfilename = myfilename)
+            return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, myfilename = myfilename)
         
    
         else:
@@ -112,7 +131,7 @@ def upload_file():
 @app.route('/submit', methods=['POST'])
 def submit():
      if request.method == 'POST':
-        # check if the post request has the file part
+       
         if 'text' not in request.form:
             print("no text entered")
             flash('No text was entered')
@@ -136,38 +155,46 @@ def submit():
     
         return render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, myfilename = myfilename)
 
+#https://stackoverflow.com/questions/47368054/wtforms-test-whether-field-is-filled-out
+def is_filled(data):
+   if data == None:
+      return False
+   if data == '':
+      return False
+   if data == []:
+      return False
+   return True
 
 
+@app.route('/submit_number_topics', methods=['POST'])
+def submit_number_topics():
+    if request.method == 'POST':
+        if is_filled(request.form['number_topics']):
+            number_topics = int(request.form['number_topics']) 
+            session['number_topics'] = str(number_topics)
 
-@app.after_request
-def add_header(r):
-    """
-    Add headers to both force latest IE rendering engine or Chrome Frame,
-    and also to cache the rendered page for 10 minutes.
-    """
-    r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    r.headers["Pragma"] = "no-cache"
-    r.headers["Expires"] = "0"
-    r.headers['Cache-Control'] = 'public, max-age=0'
-    return r
+        else:
+            number_topics = int(session['number_topics'])
 
+        if is_filled(request.form['number_topwords']):
+            number_topwords = int(request.form['number_topwords'])
+            session['number_topwords'] = str(number_topwords)
+        
+        else:
+            number_topwords = int(session['number_topwords'])
 
+     
 
+        total_text = pickle.load( open("pickles/total_text.p", "rb" ) )
+        file_names = pickle.load(open("pickles/file_names.p", "rb" ) )
 
+        
+        script, div = lda_tsne(total_text, file_names, n_topics= number_topics, n_top_words = number_topwords)
+        topic_number_form = inputTopicNumber()
+        return render_template('bulk_analysis.html', title = 'Clustering analysis', script = script, div= div, number_form = topic_number_form)
 
-
-'''
-@app.route('/pygalexample/')
-def pygalexample():
-    test = ['hello', 'world', 'hello', 'my', 'name', 'is', 'david']
-    graph_data = frequency_dist(test, 5)
-    return dict(graph_data=graph_data)
-
-
-app.jinja_env.globals.update(clever_function=pygalexample)
-'''
 
 
 
 if __name__ == '__main__':
-  app.run()
+  app.run(debug=True)

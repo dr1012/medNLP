@@ -12,8 +12,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.cluster import KMeans
 import random
 from sklearn.metrics import silhouette_score
+import tqdm
 
-def k_means_model(total_text, totalvocab_stemmed, totalvocab_tokenized,  file_names, n):
+def k_means_model(total_text, totalvocab_stemmed, totalvocab_tokenized,  file_names):
 
 
     #################################################################################################
@@ -39,11 +40,30 @@ def k_means_model(total_text, totalvocab_stemmed, totalvocab_tokenized,  file_na
 
 
     ###########  K means  ####################
-    
-    num_clusters = n
-    
-    for n_clusters in range_n_clusters:
+    rule_of_thumb = int(round(((len(file_names))/2)**0.5))
 
+    lower_limit = int(round(0.1*rule_of_thumb))
+    upper_limit =  int(round(2 * rule_of_thumb))
+
+     
+    num_clusters = 0
+    previous_silh_avg = 0.0
+
+    for n_clusters in range(lower_limit, upper_limit):
+
+        km = KMeans(n_clusters=n_clusters)
+
+        km.fit(tfidf_matrix)
+
+        cluster_labels = km.fit_predict(tfidf_matrix)
+
+        silhouette_avg = silhouette_score(tfidf_matrix, cluster_labels)
+        
+        if silhouette_avg > previous_silh_avg:
+            previous_silh_avg = silhouette_avg
+            num_clusters = n_clusters
+
+    
     km = KMeans(n_clusters=num_clusters)
 
     km.fit(tfidf_matrix)
