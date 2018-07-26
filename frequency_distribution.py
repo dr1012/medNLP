@@ -2,12 +2,15 @@ import nltk
 from nltk import FreqDist
 import pygal
 
-def  frequency_dist(data, n, title ):
+def  frequency_dist(data, n, title,stopwords = None):
 
     #data should be a list of words
     #n is number of most common words
 
+    if stopwords is not None:
+        data = [x for x in data if not x in stopwords]
 
+    
     dist = FreqDist(data)
 
     most_common=dist.most_common(n)

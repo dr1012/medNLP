@@ -11,6 +11,9 @@ class LoginForm(FlaskForm):
     remember_me = BooleanField('Remember Me')
     submit = SubmitField('Submit')
 
+class StopWordsForm(FlaskForm):
+    stopwords = StringField ('new_stop_words', validators=[DataRequired()], render_kw={"placeholder": "Stopwords"})
+    submit = SubmitField('Submit')
 
 
 class UploadFileForm(FlaskForm):
@@ -25,5 +28,4 @@ class inputText(FlaskForm):
 class inputTopicNumber(FlaskForm):
     number_topics = IntegerField('number_topics', render_kw={"placeholder": "New number of topics"})
     number_topwords = IntegerField('number_topwords', render_kw={"placeholder": "New number of top words"})
-    threshold = FloatField('threshold', render_kw={"placeholder": "New topic probability threshold"})
     submit = SubmitField('Submit')

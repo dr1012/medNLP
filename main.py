@@ -1,6 +1,6 @@
 from flask import render_template, Flask, flash, redirect, request, url_for, send_from_directory, make_response
 from config import Config
-from forms import LoginForm, UploadFileForm, inputText, inputTopicNumber
+from forms import LoginForm, UploadFileForm, inputText, inputTopicNumber, StopWordsForm
 from werkzeug.utils import secure_filename
 import os
 from extractor import extract, simple_parse
@@ -98,7 +98,7 @@ def upload_file():
                 
                 pickle.dump( total_text, open( "pickles/total_text.p", "wb" ) )
                 pickle.dump( file_names, open( "pickles/file_names.p", "wb" ) )
-
+                
 
                
                 if len(file_names)<4:
@@ -115,9 +115,16 @@ def upload_file():
 
                 pyladvis_html = pyladvis_run(lda_model_path, document_term_matrix_path, cvectorizer_path)
 
+                pickle.dump( pyladvis_html, open( "pickles/pyladvis_html.p", "wb" ) )
+
+
+
                 return render_template('bulk_analysis.html', title = 'Clustering analysis', script = script, div= div, number_form = topic_number_form, pyladvis_html = pyladvis_html )
             
             text, tokens, keywords = extract(os.path.join('uploads', filename))
+
+            pickle.dump( keywords, open( "pickles/keywords.p", "wb" ) )
+
             graph_data = frequency_dist(keywords, 26, ('Word frequency for file  with filename: ' + filename))
 
             current_time = str(time.time())
@@ -130,9 +137,13 @@ def upload_file():
 
             myfilename = '/static/mycloud' + myextension + '.png'
 
-          
+            stop_words_form = StopWordsForm()
+
+
+            session['title'] = 'Single file NLP analysis'
+            session['myfilename'] = myfilename
             
-            return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, myfilename = myfilename)
+            return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, myfilename = myfilename, stop_words_form = stop_words_form)
         
    
         else:
@@ -154,6 +165,8 @@ def submit():
         text = request.form['text']
    
         text, tokens, keywords = simple_parse(text)
+
+        pickle.dump( keywords, open( "pickles/keywords.p", "wb" ) )
          
         graph_data = frequency_dist(keywords, 26, ('Word frequency for input text'))
 
@@ -166,8 +179,13 @@ def submit():
         build_word_cloud(text, 2000, myextension)
 
         myfilename = '/static/mycloud' + myextension + '.png'
+
+        session['title'] = 'NLP analysis'
+        session['myfilename'] = myfilename
+
+        stop_words_form = StopWordsForm()
     
-        return render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, myfilename = myfilename)
+        return render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, myfilename = myfilename, stop_words_form = stop_words_form)
 
 #https://stackoverflow.com/questions/47368054/wtforms-test-whether-field-is-filled-out
 def is_filled(data):
@@ -197,25 +215,28 @@ def submit_number_topics():
         else:
             number_topwords = int(session['number_topwords'])
 
-        
-        if is_filled(request.form['threshold']):
-            threshold = int(request.form['threshold'])
-            session['threshold'] = str(threshold)
-        
-        else:
-            threshold = int(session['threshold'])
-     
 
         total_text = pickle.load( open("pickles/total_text.p", "rb" ) )
         file_names = pickle.load(open("pickles/file_names.p", "rb" ) )
 
-        
-        script, div = lda_tsne(total_text, file_names, n_topics= number_topics, n_top_words = number_topwords, threshold= threshold)
+        pyladvis_html = pickle.load(open("pickles/pyladvis_html.p", "rb" ) )
+        script, div = lda_tsne(total_text, file_names, n_topics= number_topics, n_top_words = number_topwords)
         topic_number_form = inputTopicNumber()
-        return render_template('bulk_analysis.html', title = 'Clustering analysis', script = script, div= div, number_form = topic_number_form)
+        return render_template('bulk_analysis.html', title = 'Clustering analysis', script = script, div= div, number_form = topic_number_form, pyladvis_html = pyladvis_html )
 
 
-
+@app.route('/submit_stop_words', methods=['POST'])
+def submit_stop_words():
+    if request.method == 'POST':
+        if is_filled(request.form['stopwords']):
+            new_stopwords  = request.form['stopwords']
+            new_stopwords = new_stopwords.split(",")
+            keywords = pickle.load(open("pickles/keywords.p", "rb" ) )
+            title = session['title']
+            graph_data = frequency_dist(keywords, 26, title, new_stopwords)
+            myfilename = session['myfilename']
+            stop_words_form = StopWordsForm()
+            return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, myfilename = myfilename, stop_words_form = stop_words_form)
 
 if __name__ == '__main__':
   app.run(debug=True)

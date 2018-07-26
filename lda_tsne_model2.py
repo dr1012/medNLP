@@ -24,7 +24,7 @@ from stopwords import stop_word_list
 import pickle
 import lda
 
-def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None, threshold = 0.1):
+def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
 
     n_data = len(file_names)
 
@@ -36,10 +36,6 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None, thresh
         n_top_words = 5
         session['number_topwords'] = str(n_top_words)
 
-    if threshold is None:
-        threshold = 0.1
-        session['threshold'] = str(threshold)
-
 
     t0 = time.time()
 
@@ -48,12 +44,13 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None, thresh
     cvz = cvectorizer.fit_transform(total_text)
 
 
-   # lda_model = LatentDirichletAllocation(n_components=n_topics)
-    lda_model = lda.LDA(n_topics, 200 )
-
+    lda_model = LatentDirichletAllocation(n_components=n_topics)
+    #lda_model = lda.LDA(n_topics, 200 )
 
     X_topics = lda_model.fit_transform(cvz)
 
+
+    print("NUMBER OF ITERATIONS OF LDA: " + str(lda_model.n_iter_))
   
 
     if not os.path.exists('pickles'):
@@ -73,13 +70,11 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None, thresh
     print('\n')
 
     ##############################################################################
-    # threshold and plot
 
-    _idx = np.amax(X_topics, axis=1) > threshold  # idx of news that > threshold
 
 
   
-    X_topics = X_topics[_idx]
+    X_topics = X_topics
 
     num_example = len(X_topics)
 
@@ -130,9 +125,9 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None, thresh
 
     # plot
     title = " t-SNE visualization of LDA model trained on {} files, " \
-            "{} topics, thresholding at {} topic probability, ({} data " \
-            "points and top {} words)".format(
-        X_topics.shape[0], n_topics, threshold, num_example, n_top_words)
+            "{} topics, {} data " \
+            "points and top {} words".format(
+        X_topics.shape[0], n_topics, num_example, n_top_words)
 
     plot_lda = bp.figure(plot_width=1200, plot_height=800,
                         title=title,
