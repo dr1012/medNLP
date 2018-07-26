@@ -7,7 +7,7 @@
 import os
 import argparse
 import time
-import lda
+from sklearn.decomposition import LatentDirichletAllocation
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.manifold import TSNE
@@ -21,20 +21,25 @@ from bokeh.embed import components
 from flask import session
 import pandas as pd
 from stopwords import stop_word_list
-from pyldavis import pyladvis_run
 import pickle
+import lda
 
-def lda_tsne(total_text, file_names, n_topics = None,  n_iter=200, n_top_words = None, threshold = 0.3):
+def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None, threshold = 0.1):
 
     n_data = len(file_names)
 
     if n_topics is None:
         n_topics =  int(round(((len(file_names))/2)**0.5))
-       # session['number_topics'] = str(n_topics)
+        session['number_topics'] = str(n_topics)
     
     if n_top_words is None:
         n_top_words = 5
-      #  session['number_topwords'] = str(n_top_words)
+        session['number_topwords'] = str(n_top_words)
+
+    if threshold is None:
+        threshold = 0.1
+        session['threshold'] = str(threshold)
+
 
     t0 = time.time()
 
@@ -43,20 +48,23 @@ def lda_tsne(total_text, file_names, n_topics = None,  n_iter=200, n_top_words =
     cvz = cvectorizer.fit_transform(total_text)
 
 
-    
+   # lda_model = LatentDirichletAllocation(n_components=n_topics)
+    lda_model = lda.LDA(n_topics, 200 )
 
-    lda_model = lda.LDA(n_topics=n_topics, n_iter=n_iter)
+
     X_topics = lda_model.fit_transform(cvz)
 
-    ldavis_html = pyladvis_run(lda_model, cvz, cvectorizer)
+  
 
-    
-    
- 
+    if not os.path.exists('pickles'):
+        os.makedirs('pickles')
 
-    print("<<<<<<<<<<LDAVIS OK>>>>>>>")
+    pickle.dump( lda_model, open( "pickles/lda_model.p", "wb" ) )
+    pickle.dump( cvz, open( "pickles/document_term_matrix.p", "wb" ) )
+    pickle.dump( cvectorizer, open( "pickles/cvectorizer.p", "wb" ) )
 
-    print(X_topics)
+
+
 
     t1 = time.time()
     print('\n')
@@ -64,24 +72,17 @@ def lda_tsne(total_text, file_names, n_topics = None,  n_iter=200, n_top_words =
     print ('LDA training done; took {} mins'.format((t1-t0)/60.))
     print('\n')
 
-   # np.save('mednlp/lda_doc_topic_{}files_{}topics.npy'.format(
-    #    X_topics.shape[0], X_topics.shape[1]), X_topics)
-
-    #np.save('mednlp/lda_topic_word_{}files_{}topics.npy'.format(
-     #   X_topics.shape[0], X_topics.shape[1]), lda_model.topic_word_)
-
-
     ##############################################################################
     # threshold and plot
 
-    #_idx = np.amax(X_topics, axis=1) > threshold  # idx of news that > threshold
+    _idx = np.amax(X_topics, axis=1) > threshold  # idx of news that > threshold
 
-    #print('idx:  ' + str(_idx))
-    #_topics = X_topics
-    print('topics:  ' + str(X_topics))
+
+  
+    X_topics = X_topics[_idx]
+
     num_example = len(X_topics)
 
-    print("num_example: " + str(num_example))
 
 
     # t-SNE: 50 -> 2D
@@ -89,10 +90,7 @@ def lda_tsne(total_text, file_names, n_topics = None,  n_iter=200, n_top_words =
                         init='pca')
     tsne_lda = tsne_model.fit_transform(X_topics[:num_example])
 
-    print("TSNE_LDA")
-    print(type(tsne_lda))
-    print(tsne_lda)
-    print(tsne_lda.shape)
+ 
 
     tsne_lda_df = pd.DataFrame(tsne_lda)
 
@@ -104,12 +102,11 @@ def lda_tsne(total_text, file_names, n_topics = None,  n_iter=200, n_top_words =
     for i in range(X_topics.shape[0]):
         _lda_keys += X_topics[i].argmax(),
 
-    print('lda_keys:  ')
-    print(_lda_keys)
+
 
     # show topics and their top words
     topic_summaries = []
-    topic_word = lda_model.topic_word_  # get the topic words
+    topic_word = lda_model.components_  # get the topic words
     vocab = cvectorizer.get_feature_names()
     for i, topic_dist in enumerate(topic_word):
         topic_words = np.array(vocab)[np.argsort(topic_dist)][:-(n_top_words+1):-1]
@@ -124,13 +121,6 @@ def lda_tsne(total_text, file_names, n_topics = None,  n_iter=200, n_top_words =
         color = "#" + "%06x" % random.randint(0, 0xFFFFFF)
         colormap = np.append(colormap, color)
 
-    print("#########################################################")
-    print("COLORMAP")
-    print(colormap[_lda_keys][:num_example])
-    print("#########################################################")   
-    print("LDA KEYS")
-    print(_lda_keys[:num_example])
-    print("#########################################################")
 
 
 
@@ -140,9 +130,9 @@ def lda_tsne(total_text, file_names, n_topics = None,  n_iter=200, n_top_words =
 
     # plot
     title = " t-SNE visualization of LDA model trained on {} files, " \
-            "{} topics, thresholding at {} topic probability, {} iterations ({} data " \
+            "{} topics, thresholding at {} topic probability, ({} data " \
             "points and top {} words)".format(
-        X_topics.shape[0], n_topics, threshold, n_iter, num_example, n_top_words)
+        X_topics.shape[0], n_topics, threshold, num_example, n_top_words)
 
     plot_lda = bp.figure(plot_width=1200, plot_height=800,
                         title=title,
@@ -188,18 +178,14 @@ def lda_tsne(total_text, file_names, n_topics = None,  n_iter=200, n_top_words =
     hover = plot_lda.select(dict(type=HoverTool))
     hover.tooltips = [("file name", "@file_names"), ("topic summary", '@raw_topic_summaries')]
 
-    #save(plot_lda, '20_news_tsne_lda_viz_{}_{}_{}_{}_{}_{}.html'.format(
-    #    X_topics.shape[0], n_topics, threshold, n_iter, num_example, n_top_words))
-
     t2 = time.time()
     print ('\n>>> whole process done; took {} mins\n'.format((t2 - t0) / 60.))
 
-    output_file("TSNE_OUTPUT.html", title="TTSNE OUTPUT")
+    #output_file("TSNE_OUTPUT.html", title="TTSNE OUTPUT")
     #show(plot_lda)
 
     
     
     script, div = components(plot_lda)
     
-    
-    return script, div, ldavis_html
+    return script, div

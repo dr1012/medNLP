@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired
 from werkzeug.utils import secure_filename
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, TextAreaField, IntegerField
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, TextAreaField, IntegerField, FloatField
 from wtforms.validators import DataRequired
 
 
@@ -25,4 +25,5 @@ class inputText(FlaskForm):
 class inputTopicNumber(FlaskForm):
     number_topics = IntegerField('number_topics', render_kw={"placeholder": "New number of topics"})
     number_topwords = IntegerField('number_topwords', render_kw={"placeholder": "New number of top words"})
+    threshold = FloatField('threshold', render_kw={"placeholder": "New topic probability threshold"})
     submit = SubmitField('Submit')

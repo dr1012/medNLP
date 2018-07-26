@@ -11,41 +11,31 @@ from stopwords import stop_word_list
 import numpy as np
 import pyLDAvis
 from pyLDAvis.sklearn import prepare
+import tqdm
+import time
+import pickle
+import os 
 
-stopwords = stop_word_list()
+def pyladvis_run(lda_model_path, document_term_matrix_path, vectorizer_path):
 
-
-totalvocab_stemmed = []
-totalvocab_tokenized = []
-total_text = []
-file_names = []
-
-for filename in os.listdir('uploads/extracted/better_test'):
-    mypath = 'uploads/extracted/better_test'
-    text, tokens, keywords = extract(os.path.join(mypath, filename))
-    totalvocab_stemmed.extend(stem(tokens))
-    totalvocab_tokenized.extend(tokens)
-    total_text.append(text)
-    file_names.append(filename)
-
-vectorizer = CountVectorizer(stop_words = stopwords,
-                                lowercase = True,
-                                ngram_range = (1,2), 
-                                min_df = 1,
-                                max_df = 30)
+    lda_model = pickle.load( open(lda_model_path, "rb" ) )
+    document_term_matrix = pickle.load( open(document_term_matrix_path, "rb" ) )
+    cvectorizer = pickle.load( open(vectorizer_path, "rb" ) )
+ 
+    prepared_data = prepare(lda_model,document_term_matrix,cvectorizer, mds = 'tsne', plot_opts={'xlab': '', 'ylab': ''})
 
 
-# X = docuemnt-term matrix
-X = vectorizer.fit_transform(total_text)
+    html = pyLDAvis.prepared_data_to_html(prepared_data)
 
-vocab = vectorizer.get_feature_names()
+    #os.remove(lda_model_path)
+    #os.remove(document_term_matrix)
+    #os.remove(vectorizer_path)
 
-n_top_words = 5
-
-lda_model = LatentDirichletAllocation(n_components=5, random_state=100)
-lda_model.fit_transform(X)
+    return html
 
 
+
+# might be needed for having a list of topic summaries table next to the circles
 '''
 topic_words = {}
 
@@ -68,7 +58,3 @@ for topic, words in topic_words.items():
     print('Topic: %d' % topic)
     print('  %s' % ', '.join(words))
 '''
-
-prepared_data = prepare(lda_model,X,vectorizer)
-
-pyLDAvis.show(prepared_data)

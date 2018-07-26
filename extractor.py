@@ -3,11 +3,11 @@ from nltk.tokenize import word_tokenize
 from stopwords import stop_word_list
 import tqdm
 import docx
-#from wand.image import Image
-#from PIL import Image as PI
-#import pyocr
-#import pyocr.builders
-#import io
+import nltk
+
+
+
+nltk.download('punkt')
 
 def extract(filename):
     file_name_string = filename.split(".")
@@ -25,7 +25,7 @@ def extract(filename):
         text = text_extract(filename)
 
     else:
-        raise Exception('Not an allowed file type!')
+        raise Exception('Problem  with file:  ' + str(filename) + '  This is not an allowed file type!')
 
     return simple_parse(text)
 
@@ -79,7 +79,7 @@ def pdf_extract(filename):
 
 def text_extract(filename):
     file = open(filename, 'r', errors = 'ignore') 
-    return file.read()   
+    return file.read()
   
 
 
@@ -90,27 +90,4 @@ def doc_extract(filename):
         fullText.append(para.text)
     return '\n'.join(fullText)
 
-
-'''
-
-#https://pythontips.com/2016/02/25/ocr-on-pdf-files-using-python/
-def ocr(myfilename):
-    tool = pyocr.get_available_tools()[0]
-    lang = tool.get_available_languages()[1]
-    req_image = []
-    final_text = []
-    image_pdf = Image(filename=myfilename, resolution=300)
-    image_jpeg = image_pdf.convert('jpeg')
-    for img in image_jpeg.sequence:
-        img_page = Image(image=img)
-        req_image.append(img_page.make_blob('jpeg'))
-    for img in req_image: 
-        txt = tool.image_to_string(
-            PI.open(io.BytesIO(img)),
-            lang=lang,
-            builder=pyocr.builders.TextBuilder()
-        )
-        final_text.append(txt)
-        return '\n'.join(final_text)
-
-'''       
+ 

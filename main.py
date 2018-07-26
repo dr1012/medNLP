@@ -11,11 +11,13 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import urllib.parse
 import time
-from lda_tsne_model import lda_tsne
+from lda_tsne_model2 import lda_tsne
 from compressed_main import handle_compressed_file
 from flask import session
 import json
 import pickle
+from mypyldavis import pyladvis_run
+
 
 
 
@@ -90,6 +92,9 @@ def upload_file():
 
             if file_extension in compressed_extensions:
                 total_text, totalvocab_stemmed, totalvocab_tokenized, file_names = handle_compressed_file((os.path.join('uploads', filename)), filename)
+
+                if not os.path.exists('pickles'):
+                    os.makedirs('pickles')
                 
                 pickle.dump( total_text, open( "pickles/total_text.p", "wb" ) )
                 pickle.dump( file_names, open( "pickles/file_names.p", "wb" ) )
@@ -101,7 +106,16 @@ def upload_file():
                     return redirect(url_for('upload_file'))
                 script, div = lda_tsne(total_text, file_names)
                 topic_number_form = inputTopicNumber()
-                return render_template('bulk_analysis.html', title = 'Clustering analysis', script = script, div= div, number_form = topic_number_form)
+
+                
+                lda_model_path = "pickles/lda_model.p"
+                document_term_matrix_path = "pickles/document_term_matrix.p"
+                cvectorizer_path = "pickles/cvectorizer.p"
+
+
+                pyladvis_html = pyladvis_run(lda_model_path, document_term_matrix_path, cvectorizer_path)
+
+                return render_template('bulk_analysis.html', title = 'Clustering analysis', script = script, div= div, number_form = topic_number_form, pyladvis_html = pyladvis_html )
             
             text, tokens, keywords = extract(os.path.join('uploads', filename))
             graph_data = frequency_dist(keywords, 26, ('Word frequency for file  with filename: ' + filename))
@@ -183,13 +197,20 @@ def submit_number_topics():
         else:
             number_topwords = int(session['number_topwords'])
 
+        
+        if is_filled(request.form['threshold']):
+            threshold = int(request.form['threshold'])
+            session['threshold'] = str(threshold)
+        
+        else:
+            threshold = int(session['threshold'])
      
 
         total_text = pickle.load( open("pickles/total_text.p", "rb" ) )
         file_names = pickle.load(open("pickles/file_names.p", "rb" ) )
 
         
-        script, div = lda_tsne(total_text, file_names, n_topics= number_topics, n_top_words = number_topwords)
+        script, div = lda_tsne(total_text, file_names, n_topics= number_topics, n_top_words = number_topwords, threshold= threshold)
         topic_number_form = inputTopicNumber()
         return render_template('bulk_analysis.html', title = 'Clustering analysis', script = script, div= div, number_form = topic_number_form)
 
