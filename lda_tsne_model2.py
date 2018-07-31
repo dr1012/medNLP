@@ -40,17 +40,17 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
     t0 = time.time()
 
     stopwords = stop_word_list()
-    cvectorizer = CountVectorizer(min_df=1, stop_words=stopwords,  lowercase = True, ngram_range = (1,3),  max_df = 30)
+    cvectorizer = CountVectorizer(min_df=1, stop_words=stopwords,  lowercase = True, ngram_range = (1,1))
     cvz = cvectorizer.fit_transform(total_text)
 
 
-    lda_model = LatentDirichletAllocation(n_components=n_topics)
-    #lda_model = lda.LDA(n_topics, 200 )
+    #lda_model = LatentDirichletAllocation(n_components=n_topics)
+    lda_model = lda.LDA(n_topics, 200 )
 
     X_topics = lda_model.fit_transform(cvz)
 
 
-    print("NUMBER OF ITERATIONS OF LDA: " + str(lda_model.n_iter_))
+   # print("NUMBER OF ITERATIONS OF LDA: " + str(lda_model.n_iter_))
   
 
     if not os.path.exists('pickles'):
@@ -81,7 +81,7 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
 
 
     # t-SNE: 50 -> 2D
-    tsne_model = TSNE(n_components=2, verbose=1, random_state=0, angle=.50,
+    tsne_model = TSNE(n_components=2, verbose=1, random_state=0, angle=.2,
                         init='pca')
     tsne_lda = tsne_model.fit_transform(X_topics[:num_example])
 
@@ -89,16 +89,22 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
 
     tsne_lda_df = pd.DataFrame(tsne_lda)
 
+    print(tsne_lda_df.describe())
+
     tsne_lda_df = tsne_lda_df.fillna('')
 
     tsne_lda = tsne_lda[~np.isnan(tsne_lda).any(axis=1)]
+
+    tsne_lda_df = tsne_lda_df[~tsne_lda_df.isin([np.nan, np.inf, -np.inf]).any(1)]
+
+    print(tsne_lda_df.describe())
     # find the most probable topic for each news
     _lda_keys = []
     for i in range(X_topics.shape[0]):
         _lda_keys += X_topics[i].argmax(),
 
-
-
+    print("LDA")
+    print(_lda_keys)
     # show topics and their top words
     topic_summaries = []
     topic_word = lda_model.components_  # get the topic words
@@ -179,8 +185,7 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
     #output_file("TSNE_OUTPUT.html", title="TTSNE OUTPUT")
     #show(plot_lda)
 
+    html = file_html(plot_lda, CDN)
     
     
-    script, div = components(plot_lda)
-    
-    return script, div
+    return html

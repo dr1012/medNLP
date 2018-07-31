@@ -39,7 +39,10 @@ def pyladvis_run(lda_model_path, document_term_matrix_path, vectorizer_path):
 '''
 topic_words = {}
 
-for topic, comp in enumerate(model.components_):
+n_top_words = 5
+k = 2
+
+for topic, comp in enumerate(lda_model.components_):
     # for the n-dimensional array "arr":
     # argsort() returns a ranked n-dimensional array of arr, call it "ranked_array"
     # which contains the indices that would sort arr in a descending fashion
@@ -57,4 +60,5 @@ for topic, comp in enumerate(model.components_):
 for topic, words in topic_words.items():
     print('Topic: %d' % topic)
     print('  %s' % ', '.join(words))
+
 '''
