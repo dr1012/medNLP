@@ -18,6 +18,8 @@ import os
 
 def pyladvis_run(lda_model_path, document_term_matrix_path, vectorizer_path):
 
+    t0 = time.time()
+
     lda_model = pickle.load( open(lda_model_path, "rb" ) )
     document_term_matrix = pickle.load( open(document_term_matrix_path, "rb" ) )
     cvectorizer = pickle.load( open(vectorizer_path, "rb" ) )
@@ -31,6 +33,9 @@ def pyladvis_run(lda_model_path, document_term_matrix_path, vectorizer_path):
     #os.remove(document_term_matrix)
     #os.remove(vectorizer_path)
 
+    t1 = time.time()
+    print("time for pyldavis: " + str(t1-t0))
+
     return html
 
 
@@ -38,10 +43,8 @@ def pyladvis_run(lda_model_path, document_term_matrix_path, vectorizer_path):
 # might be needed for having a list of topic summaries table next to the circles
 '''
 topic_words = {}
-
 n_top_words = 5
 k = 2
-
 for topic, comp in enumerate(lda_model.components_):
     # for the n-dimensional array "arr":
     # argsort() returns a ranked n-dimensional array of arr, call it "ranked_array"
@@ -53,12 +56,9 @@ for topic, comp in enumerate(lda_model.components_):
     # word_idx contains the indices in "topic" of the top num_top_words most relevant
     # to a given topic ... it is sorted ascending to begin with and then reversed (desc. now)    
     word_idx = np.argsort(comp)[::-1][:n_top_words]
-
     # store the words most relevant to the topic
     topic_words[topic] = [vocab[i] for i in word_idx]
-
 for topic, words in topic_words.items():
     print('Topic: %d' % topic)
     print('  %s' % ', '.join(words))
-
 '''

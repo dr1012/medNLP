@@ -24,6 +24,7 @@ from stopwords import stop_word_list
 import pickle
 import lda
 
+
 def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
 
     n_data = len(file_names)
@@ -40,15 +41,24 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
     t0 = time.time()
 
     stopwords = stop_word_list()
-    cvectorizer = CountVectorizer(min_df=1, stop_words=stopwords,  lowercase = True, ngram_range = (1,1))
+    cvectorizer = CountVectorizer(min_df=1, stop_words=stopwords,  lowercase = True, ngram_range = (1,3))
     cvz = cvectorizer.fit_transform(total_text)
+
+    t1 = time.time()
+
+    print("Time for count vectorizer (document term matrix): " + str(t1-t0))
+
 
 
     #lda_model = LatentDirichletAllocation(n_components=n_topics)
-    lda_model = lda.LDA(n_topics, 200 )
+    t2 = time.time()
+    lda_model = lda.LDA(n_topics, 500 )
 
     X_topics = lda_model.fit_transform(cvz)
 
+    t3=time.time()
+
+    print("Time for LDA: " + str(t3-t2))
 
    # print("NUMBER OF ITERATIONS OF LDA: " + str(lda_model.n_iter_))
   
@@ -63,28 +73,28 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
 
 
 
-    t1 = time.time()
-    print('\n')
-
-    print ('LDA training done; took {} mins'.format((t1-t0)/60.))
-    print('\n')
-
+   
     ##############################################################################
 
 
 
   
-    X_topics = X_topics
 
     num_example = len(X_topics)
 
 
-
+    t4 =time.time()
     # t-SNE: 50 -> 2D
     tsne_model = TSNE(n_components=2, verbose=1, random_state=0, angle=.2,
                         init='pca')
     tsne_lda = tsne_model.fit_transform(X_topics[:num_example])
 
+   
+
+    t5 = time.time()
+
+
+    print("Time for TSNE: " + str(t5-t4))
  
 
     tsne_lda_df = pd.DataFrame(tsne_lda)
@@ -96,6 +106,9 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
     tsne_lda = tsne_lda[~np.isnan(tsne_lda).any(axis=1)]
 
     tsne_lda_df = tsne_lda_df[~tsne_lda_df.isin([np.nan, np.inf, -np.inf]).any(1)]
+
+
+
 
     print(tsne_lda_df.describe())
     # find the most probable topic for each news
@@ -130,6 +143,8 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
         raw_topic_summaries.append(topic_summaries[x])
 
     # plot
+
+    t6 = time.time()
     title = " t-SNE visualization of LDA model trained on {} files, " \
             "{} topics, {} data " \
             "points and top {} words".format(
@@ -179,8 +194,10 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
     hover = plot_lda.select(dict(type=HoverTool))
     hover.tooltips = [("file name", "@file_names"), ("topic summary", '@raw_topic_summaries')]
 
-    t2 = time.time()
-    print ('\n>>> whole process done; took {} mins\n'.format((t2 - t0) / 60.))
+    t7 = time.time()
+    print("Time for Bokeh plotting: " + str(t7-t6))
+
+    print ('\n>>> whole process done; took {} mins\n'.format((t7 - t0) / 60.))
 
     #output_file("TSNE_OUTPUT.html", title="TTSNE OUTPUT")
     #show(plot_lda)
