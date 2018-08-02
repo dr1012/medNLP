@@ -1,6 +1,6 @@
 from flask import render_template, Flask, flash, redirect, request, url_for, send_from_directory, make_response
 from config import Config
-from forms import LoginForm, UploadFileForm, inputText, inputTopicNumber, StopWordsForm
+
 from werkzeug.utils import secure_filename
 import os
 from extractor import extract, simple_parse
@@ -17,13 +17,28 @@ from flask import session
 import json
 import pickle
 from mypyldavis import pyladvis_run
+from flask_login import LoginManager, current_user, login_user, logout_user, login_required
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.urls import url_parse
+from flask_socketio import SocketIO, emit
+
+#gevent
+#flask-login
+#flask_sqlalchemy
+#flask_socketio
+#pickle
 
 
 
 
 app = Flask(__name__)
-#app.secret_key = b'\x8a\xf6\x1b\x81\xf2U\xc3p5K!a\x8c\x17\x82]'
-app.config['SECRET_KEY'] = 'A_g_reat-fuck_ing-secret'
+app.config.from_object(Config)
+db = SQLAlchemy(app)
+socketio = SocketIO(app)
+
+from models import User, Single_Upload, Group_Upload
+from forms import LoginForm, UploadFileForm, inputText, inputTopicNumber, StopWordsForm, RegisterForm, EditAccountForm
 
 
 UPLOAD_FOLDER = '/uploads'
@@ -32,30 +47,21 @@ ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'zip','rar', 'docx'])
 compressed_extensions = ['zip', 'rar']
 
 
-#app.config.from_object(Config)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
+login_settings = LoginManager(app)
+
+login_settings.login_view = 'login_form'
+
+db.create_all()
+
+@socketio.on('disconnect')
+def disconnect_user():
+    print('DETECTED')
+    logout_user()
+    #session.clear()
 
 
-@app.route('/')
-def hello():
-    uploadForm = UploadFileForm()
-    inputTextForm = inputText()
-    return render_template('home.html',title = 'Welcome', form = uploadForm, textform = inputTextForm)
-
-
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    form = LoginForm()
-    return render_template('login.html', title='Submit', form=form)
-
-
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory('uploads',
-                               filename)
 
 
 
@@ -149,6 +155,11 @@ def upload_file():
         else:
             flash('not an allowed file format')
             return redirect(url_for('upload_file'))
+    else:
+        uploadForm = UploadFileForm()
+        inputTextForm = inputText()
+        return render_template('home.html',title = 'Welcome', form = uploadForm, textform = inputTextForm)
+
 
 
 
@@ -238,6 +249,97 @@ def submit_stop_words():
 
             stop_words_form = StopWordsForm()
             return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, stop_words_form = stop_words_form, wordcloud_html = wordcloud_html)
+
+
+
+
+
+
+
+
+
+##    https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-v-user-logins ####
+
+
+
+@login_settings.user_loader
+def load_user(id):
+    return User.query.get(int(id))
+
+
+## !!!!!!!!this handles both the login template before anyone is logged in and the form submission of the login procress. No need to have two seraprate functions. !!!!!!!!
+
+#If the username and password are both correct, then I call the login_user() function, which comes from Flask-Login. 
+# This function will register the user as logged in, so that means that any future pages the user navigates to will have the current_user variable set to that user.
+@app.route('/login_form', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('upload_file'))
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first()
+        if user is None or not user.check_password(form.password.data):
+            flash('Invalid username or password')
+            return redirect(url_for('login'))
+        login_user(user)
+        next_page = request.args.get('next')
+        if not next_page or url_parse(next_page).netloc != '':
+            return redirect(url_for('upload_file'))
+        return redirect(next_page)
+    return render_template('login.html', title='Sign In', form=form)
+
+
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('upload_file'))
+
+
+
+
+@app.route('/register_form', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('upload_file'))
+    form = RegisterForm()
+    if form.validate_on_submit():
+        user = User(username=form.username.data)
+        user.set_password(form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        flash('You are now a registered user!')
+        return redirect(url_for('login'))
+    return render_template('register.html', title='Submit', form=form)
+
+
+
+
+@app.route('/my_account',  methods=['GET', 'POST'])
+@login_required
+def my_account():
+
+    def set_password(password):
+        return generate_password_hash(password)
+
+
+    form = EditAccountForm()
+    if form.validate_on_submit():
+        current_user.username = form.username.data
+        current_user.password_hash = set_password(form.new_password.data)
+        db.session.commit()
+        flash('Your changes have been saved.')
+        return redirect(url_for('my_account'))
+
+    elif request.method == 'GET':
+        form.username.data = current_user.username
+    return render_template('my_account.html', title='Edit Profile',
+                           form=form)
+
+
+
+
+
 
 if __name__ == '__main__':
   app.run(debug=True)

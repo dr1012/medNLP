@@ -1,9 +1,14 @@
 import os
 
+# __file__ is the pathway from which the module was laoded
+basedir = os.path.abspath(os.path.dirname(__file__))
+
 class Config(object):
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'A_g_reat-fuck_ing-secret'
+
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'sqlite:///' + os.path.join(basedir, 'app.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
-UPLOAD_FOLDER = '/uploads'
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'zip', 'tar', 'rar', '7z'])
-    
+
