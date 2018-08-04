@@ -4,6 +4,8 @@ from stopwords import stop_word_list
 import tqdm
 import docx
 import nltk
+from flask import session
+from main import myid
 
 
 
@@ -25,7 +27,9 @@ def extract(filename):
         text = text_extract(filename)
 
     else:
-        raise Exception('Problem  with file:  ' + str(filename) + '  This is not an allowed file type!')
+        added_extension = '_' + str(myid)
+        real_filename = filename.replace(added_extension, '')
+        raise Exception('Problem  with file:  ' + str(real_filename) + '  This is not an allowed file type!')
 
     return simple_parse(text)
 

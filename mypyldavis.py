@@ -19,7 +19,8 @@ import os
 def pyladvis_run(lda_model_path, document_term_matrix_path, vectorizer_path):
 
     t0 = time.time()
-
+    
+    
     lda_model = pickle.load( open(lda_model_path, "rb" ) )
     document_term_matrix = pickle.load( open(document_term_matrix_path, "rb" ) )
     cvectorizer = pickle.load( open(vectorizer_path, "rb" ) )

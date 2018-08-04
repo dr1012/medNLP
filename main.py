@@ -1,5 +1,10 @@
-from flask import render_template, Flask, flash, redirect, request, url_for, send_from_directory, make_response
+from flask import render_template, Flask, flash, redirect, request, url_for, send_from_directory, make_response, session
+import uuid
+from flask_session import Session
+myid =  str(uuid.uuid4())
+
 from config import Config
+import flask
 
 from werkzeug.utils import secure_filename
 import os
@@ -13,7 +18,7 @@ import urllib.parse
 import time
 from lda_tsne_model2 import lda_tsne
 from compressed_main import handle_compressed_file
-from flask import session
+
 import json
 import pickle
 from mypyldavis import pyladvis_run
@@ -22,20 +27,24 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.urls import url_parse
 from flask_socketio import SocketIO, emit
+import shutil
 
 #gevent
 #flask-login
 #flask_sqlalchemy
 #flask_socketio
+#flask-session
 #pickle
-
-
-
 
 app = Flask(__name__)
 app.config.from_object(Config)
+app.secret_key = 'A_g_reat-fuck_ing-secret'
+
 db = SQLAlchemy(app)
 socketio = SocketIO(app)
+
+# at initialization, write code that creates uplaods/pickles folders
+
 
 from models import User, Single_Upload, Group_Upload
 from forms import LoginForm, UploadFileForm, inputText, inputTopicNumber, StopWordsForm, RegisterForm, EditAccountForm
@@ -55,11 +64,17 @@ login_settings.login_view = 'login_form'
 
 db.create_all()
 
+
 @socketio.on('disconnect')
 def disconnect_user():
-    print('DETECTED')
-    logout_user()
-    #session.clear()
+    print('DISCONNECT')
+
+
+@socketio.on('connect')
+def connect_user():
+    print('CONNECT')
+
+   
 
 
 
@@ -70,9 +85,22 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-
+#https://stackoverflow.com/questions/15312953/choose-a-file-starting-with-a-given-string
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
+    
+    uploads_path = 'uploads'
+    pickles_path = 'pickles'
+    for i in os.listdir(uploads_path):
+        if os.path.isfile(os.path.join(uploads_path,i)) and str(myid) in i:
+            os.remove()
+
+    for i in os.listdir(pickles_path):
+        if os.path.isfile(os.path.join(pickles_path,i)) and str(myid) in i:
+            os.remove()
+
+
+
     if request.method == 'POST':
         # check if the post request has the file part
         if 'document' not in request.files:
@@ -91,19 +119,25 @@ def upload_file():
 
             file_extension =  filename.rsplit('.', 1)[1].lower()
 
+            file_name_no_extension = filename.rsplit('.', 1)[0].lower()
+
             if not os.path.exists('uploads'):
                 os.makedirs('uploads')
 
-            file.save(os.path.join('uploads', filename))
+            file_name_uuid = str(file_name_no_extension) + '_' +  str(myid) + '.' + file_extension
+            # saved as 'filename_<uuid>.txt
+            file.save(os.path.join('uploads', file_name_uuid))
 
             if file_extension in compressed_extensions:
-                total_text, totalvocab_stemmed, totalvocab_tokenized, file_names = handle_compressed_file((os.path.join('uploads', filename)), filename)
+                total_text, totalvocab_stemmed, totalvocab_tokenized, file_names = handle_compressed_file((os.path.join('uploads', file_name_uuid)), filename)
 
                 if not os.path.exists('pickles'):
                     os.makedirs('pickles')
                 
-                pickle.dump( total_text, open( "pickles/total_text.p", "wb" ) )
-                pickle.dump( file_names, open( "pickles/file_names.p", "wb" ) )
+                total_text_path = 'pickles/total_text_'+ str(myid) + '.p'
+                file_names_path = 'pickles/file_names_'+ str(myid) + '.p'
+                pickle.dump( total_text, open( total_text_path, "wb" ) )
+                pickle.dump( file_names, open( file_names_path, "wb" ) )
                 
 
                
@@ -114,22 +148,29 @@ def upload_file():
                 topic_number_form = inputTopicNumber()
 
                 
-                lda_model_path = "pickles/lda_model.p"
-                document_term_matrix_path = "pickles/document_term_matrix.p"
-                cvectorizer_path = "pickles/cvectorizer.p"
+                lda_model_path = "pickles/lda_model_" + str(myid) + '.p'
+                document_term_matrix_path = "pickles/document_term_matrix_" + str(myid) + '.p'
+                cvectorizer_path = "pickles/cvectorizer_" + str(myid) + '.p'
 
 
                 pyladvis_html = pyladvis_run(lda_model_path, document_term_matrix_path, cvectorizer_path)
 
-                pickle.dump( pyladvis_html, open( "pickles/pyladvis_html.p", "wb" ) )
+                pyladvis_html_path = "pickles/pyladvis_html_"  + str(myid) + '.p'
 
+                pickle.dump( pyladvis_html, open( pyladvis_html_path, "wb" ) )
+
+                
+                
 
 
                 return render_template('bulk_analysis.html', title = 'Clustering analysis', lda_html = lda_html, number_form = topic_number_form, pyladvis_html = pyladvis_html )
             
-            text, tokens, keywords = extract(os.path.join('uploads', filename))
+            text, tokens, keywords = extract(os.path.join('uploads', file_name_uuid))
 
-            pickle.dump( keywords, open( "pickles/keywords.p", "wb" ) )
+
+            keywords_path = "pickles/keywords_" + str(myid) + '.p'
+
+            pickle.dump( keywords, open( keywords_path, "wb" ) )
 
             graph_data = frequency_dist(keywords, 26, ('Word frequency for file  with filename: ' + filename))
 
@@ -137,9 +178,9 @@ def upload_file():
 
             wordcloud_html = build_word_cloud(text, 2000)
 
-            
+            wordcloud_html_path = "pickles/wordcloud_html_" + str(myid) + '.p'
 
-            pickle.dump(wordcloud_html, open( "pickles/wordcloud_html.p", "wb" ) )
+            pickle.dump(wordcloud_html, open( wordcloud_html_path, "wb" ) )
 
             
 
@@ -177,16 +218,17 @@ def submit():
    
         text, tokens, keywords = simple_parse(text)
 
-        pickle.dump( keywords, open( "pickles/keywords.p", "wb" ) )
+        keywords_path = "pickles/keywords_" + str(myid) + '.p'
+
+        pickle.dump( keywords, open( keywords_path, "wb" ) )
          
         graph_data = frequency_dist(keywords, 26, ('Word frequency for input text'))
 
-   
-
         wordcloud_html = build_word_cloud(text, 2000)
 
+        wordcloud_html_path = "pickles/wordcloud_html_" + str(myid) + '.p'
 
-        pickle.dump(wordcloud_html, open( "pickles/wordcloud_html.p", "wb" ) )
+        pickle.dump(wordcloud_html, open( wordcloud_html_path, "wb" ) )
 
 
         session['title'] = 'NLP analysis'
@@ -225,10 +267,26 @@ def submit_number_topics():
             number_topwords = int(session['number_topwords'])
 
 
-        total_text = pickle.load( open("pickles/total_text.p", "rb" ) )
-        file_names = pickle.load(open("pickles/file_names.p", "rb" ) )
+        total_text_path = 'pickles/total_text_'+ str(myid) + '.p'
+        file_names_path = 'pickles/file_names_'+ str(myid) + '.p'
+        pyladvis_html_path = "pickles/pyladvis_html_"  + str(myid) + '.p'
 
-        pyladvis_html = pickle.load(open("pickles/pyladvis_html.p", "rb" ) )
+        print()
+        print("Paths: ")
+
+        print(total_text_path)
+        print(file_names_path)
+        print(pyladvis_html_path)
+
+        print()
+
+
+        total_text = pickle.load( open(total_text_path, "rb" ) )
+        file_names = pickle.load(open(file_names_path, "rb" ) )
+
+
+
+        pyladvis_html = pickle.load(open(pyladvis_html_path, "rb" ) )
         lda_html = lda_tsne(total_text, file_names, n_topics= number_topics, n_top_words = number_topwords)
         topic_number_form = inputTopicNumber()
         return render_template('bulk_analysis.html', title = 'Clustering analysis',lda_html = lda_html, number_form = topic_number_form, pyladvis_html = pyladvis_html )
@@ -241,11 +299,16 @@ def submit_stop_words():
             new_stopwords  = request.form['stopwords']
             new_stopwords = new_stopwords.replace(' ','')
             new_stopwords = new_stopwords.split(",")
-            keywords = pickle.load(open("pickles/keywords.p", "rb" ) )
+
+            keywords_path = "pickles/keywords_" + str(myid) + '.p'
+
+            keywords = pickle.load(open(keywords_path, "rb" ) )
             title = session['title']
             graph_data = frequency_dist(keywords, 26, title, new_stopwords)
 
-            wordcloud_html = pickle.load(open("pickles/wordcloud_html.p", "rb" ) )
+            wordcloud_html_path = "pickles/wordcloud_html_" + str(myid) + '.p'
+
+            wordcloud_html = pickle.load(open(wordcloud_html_path, "rb" ) )
 
             stop_words_form = StopWordsForm()
             return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, stop_words_form = stop_words_form, wordcloud_html = wordcloud_html)
@@ -337,9 +400,11 @@ def my_account():
                            form=form)
 
 
+#def delete_files(myid):
 
 
 
 
 if __name__ == '__main__':
-  app.run(debug=True)
+    #app.run(debug=True)
+    socketio.run(app)

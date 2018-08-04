@@ -6,6 +6,8 @@ from nltk.stem.snowball import SnowballStemmer
 import spacy
 import rarfile
 import tarfile
+from flask import session
+from main import myid
 
 
 nlp = spacy.load('en_core_web_sm')
@@ -45,9 +47,11 @@ def decompress(file_path, compressed_file_name):
 
     main_extension = compressed_file_name.split('.')[1].lower()
 
+    compressed_file_name_without_extension_uuid = compressed_file_name_without_extension + "_" + str(myid)
 
-    if not os.path.exists('uploads/extracted/'+ str(compressed_file_name_without_extension)):
-         os.makedirs('uploads/extracted/'+ str(compressed_file_name_without_extension))
+
+    if not os.path.exists('uploads/extracted/'+ str(compressed_file_name_without_extension_uuid)):
+         os.makedirs('uploads/extracted/'+ str(compressed_file_name_without_extension_uuid))
 
 
     if main_extension == 'zip':
@@ -58,14 +62,14 @@ def decompress(file_path, compressed_file_name):
             extension = element.rsplit('.', 1)[1].lower()
             if extension in  ['txt', 'pdf', 'docx']:
                 count = count + 1
-                zipped.extract(element, 'uploads/extracted/'+ str(compressed_file_name_without_extension))
+                zipped.extract(element, 'uploads/extracted/'+ str(compressed_file_name_without_extension_uuid))
 
 
         
         zipped.close()
 
         if count == 0:
-            os.rmdir('uploads/extracted/'+ str(compressed_file_name_without_extension)) 
+            os.rmdir('uploads/extracted/'+ str(compressed_file_name_without_extension_uuid)) 
 
     elif main_extension == 'rar':
        
@@ -76,12 +80,12 @@ def decompress(file_path, compressed_file_name):
             extension = element.rsplit('.', 1)[1].lower()
             if extension in  ['txt', 'pdf', 'docx']:
                 count = count + 1
-                zipped.extract(element, 'uploads/extracted/'+ str(compressed_file_name_without_extension))
+                zipped.extract(element, 'uploads/extracted/'+ str(compressed_file_name_without_extension_uuid))
 
         zipped.close()
 
         if count == 0:
-            os.rmdir('uploads/extracted/'+ str(compressed_file_name_without_extension)) 
+            os.rmdir('uploads/extracted/'+ str(compressed_file_name_without_extension_uuid)) 
 
 
     
@@ -91,14 +95,17 @@ def handle_compressed_file(file_path,compressed_file_name):
     decompress(file_path, compressed_file_name)
 
     compressed_file_name_without_extension = compressed_file_name.split('.')[0]
+
+    compressed_file_name_without_extension_uuid = compressed_file_name_without_extension + "_" + str(myid)
+
     
     totalvocab_stemmed = []
     totalvocab_tokenized = []
     total_text = []
     file_names = []
 
-    for filename in os.listdir('uploads/extracted/'+ str(compressed_file_name_without_extension)):
-        mypath = 'uploads/extracted/'+ str(compressed_file_name_without_extension)
+    for filename in os.listdir('uploads/extracted/'+ str(compressed_file_name_without_extension_uuid)):
+        mypath = 'uploads/extracted/'+ str(compressed_file_name_without_extension_uuid)
         text, tokens, keywords = extract(os.path.join(mypath, filename))
         totalvocab_stemmed.extend(stem(tokens))
         totalvocab_tokenized.extend(tokens)

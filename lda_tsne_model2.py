@@ -23,6 +23,7 @@ import pandas as pd
 from stopwords import stop_word_list
 import pickle
 import lda
+from main import myid
 
 
 def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
@@ -65,10 +66,15 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
 
     if not os.path.exists('pickles'):
         os.makedirs('pickles')
+    
 
-    pickle.dump( lda_model, open( "pickles/lda_model.p", "wb" ) )
-    pickle.dump( cvz, open( "pickles/document_term_matrix.p", "wb" ) )
-    pickle.dump( cvectorizer, open( "pickles/cvectorizer.p", "wb" ) )
+    lda_model_path = "pickles/lda_model_" + str(myid) + '.p'
+    document_term_matrix_path = "pickles/document_term_matrix_" + str(myid) + '.p'
+    cvectorizer_path = "pickles/cvectorizer_" + str(myid) + '.p'
+
+    pickle.dump( lda_model, open( lda_model_path, "wb" ) )
+    pickle.dump( cvz, open( document_term_matrix_path, "wb" ) )
+    pickle.dump( cvectorizer, open( cvectorizer_path, "wb" ) )
 
 
 
