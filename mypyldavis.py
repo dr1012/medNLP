@@ -16,7 +16,7 @@ import time
 import pickle
 import os 
 
-def pyladvis_run(lda_model_path, document_term_matrix_path, vectorizer_path):
+def pyldavis_run(lda_model_path, document_term_matrix_path, vectorizer_path):
 
     t0 = time.time()
     

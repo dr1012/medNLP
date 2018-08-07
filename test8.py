@@ -1,7 +1,7 @@
-import os
+import re
 
+regex = re.compile('[^a-zA-Z0-9-]')
+#First parameter is the replacement, second parameter is your input string
+x = regex.sub('', 'h3llo w0rld!!#]$')
 
-path = 'uploads'
-for i in os.listdir(path):
-    if os.path.isfile(os.path.join(path,i)) and 'test' in i:
-        print(i)
+print(x)

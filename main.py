@@ -1,7 +1,8 @@
 from flask import render_template, Flask, flash, redirect, request, url_for, send_from_directory, make_response, session
 import uuid
 from flask_session import Session
-myid =  str(uuid.uuid4())
+an_id = str(uuid.uuid4())
+myid =  an_id[:8] + an_id[24:]
 
 from config import Config
 import flask
@@ -21,13 +22,15 @@ from compressed_main import handle_compressed_file
 
 import json
 import pickle
-from mypyldavis import pyladvis_run
+from mypyldavis import pyldavis_run
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.urls import url_parse
 from flask_socketio import SocketIO, emit
 import shutil
+from azure.storage.blob import BlockBlobService, PublicAccess
+import re
 
 #gevent
 #flask-login
@@ -48,7 +51,7 @@ socketio = SocketIO(app)
 
 from models import User, Single_Upload, Group_Upload
 from forms import LoginForm, UploadFileForm, inputText, inputTopicNumber, StopWordsForm, RegisterForm, EditAccountForm
-
+import blob_upload
 
 UPLOAD_FOLDER = '/uploads'
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'zip','rar', 'docx'])
@@ -67,6 +70,8 @@ db.create_all()
 
 @socketio.on('disconnect')
 def disconnect_user():
+   # if current_user.is_anonymous:
+    #    delete_files(myid)
     print('DISCONNECT')
 
 
@@ -88,18 +93,6 @@ def allowed_file(filename):
 #https://stackoverflow.com/questions/15312953/choose-a-file-starting-with-a-given-string
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
-    
-    uploads_path = 'uploads'
-    pickles_path = 'pickles'
-    for i in os.listdir(uploads_path):
-        if os.path.isfile(os.path.join(uploads_path,i)) and str(myid) in i:
-            os.remove()
-
-    for i in os.listdir(pickles_path):
-        if os.path.isfile(os.path.join(pickles_path,i)) and str(myid) in i:
-            os.remove()
-
-
 
     if request.method == 'POST':
         # check if the post request has the file part
@@ -121,23 +114,52 @@ def upload_file():
 
             file_name_no_extension = filename.rsplit('.', 1)[0].lower()
 
+            if len(file_name_no_extension)<3:
+                file_name_no_extension = file_name_no_extension + 'xxx'
+                filename  =  file_name_no_extension + '.' + file_extension
+
+            if len(file_name_no_extension)>28:
+                file_name_no_extension = file_name_no_extension[0:28]
+                filename  =  file_name_no_extension + '.' + file_extension
+
             if not os.path.exists('uploads'):
                 os.makedirs('uploads')
 
             file_name_uuid = str(file_name_no_extension) + '_' +  str(myid) + '.' + file_extension
+            file_name_uuid_no_extension = str(file_name_no_extension) + '_' +  str(myid)
             # saved as 'filename_<uuid>.txt
             file.save(os.path.join('uploads', file_name_uuid))
 
-            if file_extension in compressed_extensions:
-                total_text, totalvocab_stemmed, totalvocab_tokenized, file_names = handle_compressed_file((os.path.join('uploads', file_name_uuid)), filename)
+            session['single_file_path'] = os.path.join('uploads', file_name_uuid)
+            
 
-                if not os.path.exists('pickles'):
-                    os.makedirs('pickles')
-                
+
+            if file_extension in compressed_extensions:
+
                 total_text_path = 'pickles/total_text_'+ str(myid) + '.p'
                 file_names_path = 'pickles/file_names_'+ str(myid) + '.p'
-                pickle.dump( total_text, open( total_text_path, "wb" ) )
-                pickle.dump( file_names, open( file_names_path, "wb" ) )
+                lda_model_path = "pickles/lda_model_" + str(myid) + '.p'
+                lda_html_path = "pickles/lda_html_" + str(myid) + '.p'
+                document_term_matrix_path = "pickles/document_term_matrix_" + str(myid) + '.p'
+                cvectorizer_path = "pickles/cvectorizer_" + str(myid) + '.p'
+                pyldavis_html_path = "pickles/pyldavis_html_"  + str(myid) + '.p'
+
+
+                        
+                session['total_text_path'] = total_text_path
+                session['file_names_path'] = file_names_path
+                session['vectorizer_path'] = cvectorizer_path
+                session['document_term_matrix_path'] = document_term_matrix_path
+                session['lda_model_path'] = lda_model_path
+                session['lda_html_path'] = lda_html_path
+                session['pyldavis_html_path'] = pyldavis_html_path
+
+                
+                total_text, totalvocab_stemmed, totalvocab_tokenized, file_names = handle_compressed_file((os.path.join('uploads', file_name_uuid)), filename)
+
+               
+                
+
                 
 
                
@@ -148,22 +170,31 @@ def upload_file():
                 topic_number_form = inputTopicNumber()
 
                 
-                lda_model_path = "pickles/lda_model_" + str(myid) + '.p'
-                document_term_matrix_path = "pickles/document_term_matrix_" + str(myid) + '.p'
-                cvectorizer_path = "pickles/cvectorizer_" + str(myid) + '.p'
+          
 
+                pyldavis_html = pyldavis_run(lda_model_path, document_term_matrix_path, cvectorizer_path)
 
-                pyladvis_html = pyladvis_run(lda_model_path, document_term_matrix_path, cvectorizer_path)
-
-                pyladvis_html_path = "pickles/pyladvis_html_"  + str(myid) + '.p'
-
-                pickle.dump( pyladvis_html, open( pyladvis_html_path, "wb" ) )
+                if not os.path.exists('pickles'):
+                    os.makedirs('pickles')
 
                 
-                
+                pickle.dump( total_text, open( total_text_path, "wb" ) )
+                pickle.dump( file_names, open( file_names_path, "wb" ) )
+                pickle.dump( pyldavis_html, open( pyldavis_html_path, "wb" ) )
+                pickle.dump( lda_html, open( lda_html_path, "wb" ) )
+
+        
+             
+
+                return render_template('bulk_analysis.html', title = 'Clustering analysis', lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html, save = True )
+            
+            session['single_file_name_short_no_extension'] = file_name_no_extension
+            session['single_file_name_uuid_long_no_extension'] = file_name_uuid_no_extension
+            session['single_file_name_short_with_extension'] = filename
+            session['single_file_name_long_with_extension'] = file_name_uuid
+           
 
 
-                return render_template('bulk_analysis.html', title = 'Clustering analysis', lda_html = lda_html, number_form = topic_number_form, pyladvis_html = pyladvis_html )
             
             text, tokens, keywords = extract(os.path.join('uploads', file_name_uuid))
 
@@ -190,13 +221,16 @@ def upload_file():
             session['title'] = 'Single file NLP analysis'
       
             
-            return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, wordcloud_html = wordcloud_html,  stop_words_form = stop_words_form)
+            return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, wordcloud_html = wordcloud_html,  stop_words_form = stop_words_form, save = True)
         
    
         else:
             flash('not an allowed file format')
             return redirect(url_for('upload_file'))
     else:
+        print()
+        print("NO REQUEST")
+        print()
         uploadForm = UploadFileForm()
         inputTextForm = inputText()
         return render_template('home.html',title = 'Welcome', form = uploadForm, textform = inputTextForm)
@@ -236,7 +270,7 @@ def submit():
 
         stop_words_form = StopWordsForm()
     
-        return render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, wordcloud_html = wordcloud_html,  stop_words_form = stop_words_form)
+        return render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, wordcloud_html = wordcloud_html,  stop_words_form = stop_words_form, save = True)
 
 #https://stackoverflow.com/questions/47368054/wtforms-test-whether-field-is-filled-out
 def is_filled(data):
@@ -269,27 +303,38 @@ def submit_number_topics():
 
         total_text_path = 'pickles/total_text_'+ str(myid) + '.p'
         file_names_path = 'pickles/file_names_'+ str(myid) + '.p'
-        pyladvis_html_path = "pickles/pyladvis_html_"  + str(myid) + '.p'
+        pyldavis_html_path = "pickles/pyldavis_html_"  + str(myid) + '.p'
 
-        print()
-        print("Paths: ")
-
-        print(total_text_path)
-        print(file_names_path)
-        print(pyladvis_html_path)
-
-        print()
 
 
         total_text = pickle.load( open(total_text_path, "rb" ) )
         file_names = pickle.load(open(file_names_path, "rb" ) )
 
 
+        lda_html_path = "pickles/lda_html_" + str(myid) + '.p'
+        pyldavis_html_path = "pickles/pyldavis_html_"  + str(myid) + '.p'
 
-        pyladvis_html = pickle.load(open(pyladvis_html_path, "rb" ) )
+
+
+
+        
         lda_html = lda_tsne(total_text, file_names, n_topics= number_topics, n_top_words = number_topwords)
+
+        lda_model_path = "pickles/lda_model_" + str(myid) + '.p'
+        document_term_matrix_path = "pickles/document_term_matrix_" + str(myid) + '.p'
+        cvectorizer_path = "pickles/cvectorizer_" + str(myid) + '.p'
+
+        if is_filled(request.form['number_topics']):
+            pyldavis_html = pyldavis_run(lda_model_path, document_term_matrix_path, cvectorizer_path)
+        else:
+            pyldavis_html = pickle.load(open(pyldavis_html_path, "rb" ) )
+
+
+        pickle.dump( pyldavis_html, open( pyldavis_html_path, "wb" ) )
+        pickle.dump( lda_html, open( lda_html_path, "wb" ) )
+
         topic_number_form = inputTopicNumber()
-        return render_template('bulk_analysis.html', title = 'Clustering analysis',lda_html = lda_html, number_form = topic_number_form, pyladvis_html = pyladvis_html )
+        return render_template('bulk_analysis.html', title = 'Clustering analysis',lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html, save = True )
 
 
 @app.route('/submit_stop_words', methods=['POST'])
@@ -311,7 +356,7 @@ def submit_stop_words():
             wordcloud_html = pickle.load(open(wordcloud_html_path, "rb" ) )
 
             stop_words_form = StopWordsForm()
-            return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, stop_words_form = stop_words_form, wordcloud_html = wordcloud_html)
+            return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, stop_words_form = stop_words_form, wordcloud_html = wordcloud_html, save = True)
 
 
 
@@ -400,8 +445,211 @@ def my_account():
                            form=form)
 
 
-#def delete_files(myid):
 
+@app.route('/save_group')
+def save_group():
+
+    compressed_file_name_without_extension_uuid = session['compressed_file_name_without_extension_uuid'] 
+    compressed_file_name_with_extension = session['compressed_file_name']
+
+    compressed_file_name_uuid = session['compressed_file_name_uuid']
+
+  
+
+    total_text_path = session['total_text_path']
+    file_names_path = session['file_names_path']
+    vectorizer_path = session['vectorizer_path']
+    document_term_matrix_path = session['document_term_matrix_path']
+    lda_model_path = session['lda_model_path']
+    lda_html_path = session['lda_html_path']
+    pyldavis_html_path = session['pyldavis_html_path']
+
+
+    #https://stackoverflow.com/questions/22520932/python-remove-all-non-alphabet-chars-from-string
+    regex = re.compile('[^a-zA-Z0-9-]')
+    
+    compressed_file_name_without_extension_uuid = regex.sub('', compressed_file_name_without_extension_uuid)
+
+
+
+    #https://stackoverflow.com/questions/5998245/get-current-time-in-milliseconds-in-python
+    millis = int(round(time.time() * 10000))
+
+    container_name = compressed_file_name_without_extension_uuid + str(millis)
+
+    blob_upload.upload_group_file(compressed_file_name_with_extension, compressed_file_name_uuid, container_name, total_text_path,
+    vectorizer_path, document_term_matrix_path, file_names_path, lda_model_path, lda_html_path, pyldavis_html_path, delete = False, update_db=True)
+
+    lda_html = pickle.load(open(lda_html_path, "rb" ) )
+    pyldavis_html = pickle.load(open(pyldavis_html_path, "rb" ) )
+    
+    topic_number_form = inputTopicNumber()
+
+    flash('Your model has been saved')
+
+    return render_template('bulk_analysis.html', title = 'Clustering analysis', lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html, save = False )
+
+
+
+@app.route('/save_single')
+def save_single():
+
+
+    single_file_name_short_no_extension = session['single_file_name_short_no_extension']
+    single_file_name_uuid_long_no_extension = session['single_file_name_uuid_long_no_extension']
+    single_file_name_short_with_extension = session['single_file_name_short_with_extension']
+    single_file_name_long_with_extension = session['single_file_name_long_with_extension']
+
+    regex = re.compile('[^a-zA-Z0-9-]')
+    
+    single_file_name_uuid_long_no_extension = regex.sub('', single_file_name_uuid_long_no_extension)
+
+    single_file_path = os.path.join('uploads', single_file_name_short_with_extension)
+
+
+    #https://stackoverflow.com/questions/5998245/get-current-time-in-milliseconds-in-python
+    millis = int(round(time.time() * 10000))
+    container_name = single_file_name_uuid_long_no_extension + str(millis)
+    
+
+    blob_upload.upload_single_file(single_file_name_short_with_extension, single_file_path, container_name, single_file_name_long_with_extension,   delete=False, update_db = True)
+
+    #(file_name_short_with_extension, file_path, container_name, file_name_long_with_extension, delete=False, update_db = True):
+
+    keywords_path = "pickles/keywords_" + str(myid) + '.p'
+
+    keywords = pickle.load(open(keywords_path, "rb" ) )
+    title = session['title']
+    graph_data = frequency_dist(keywords, 26, title)
+
+    wordcloud_html_path = "pickles/wordcloud_html_" + str(myid) + '.p'
+
+    wordcloud_html = pickle.load(open(wordcloud_html_path, "rb" ) )
+
+    stop_words_form = StopWordsForm()
+    flash('Your model has been saved')
+
+    return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, stop_words_form = stop_words_form, wordcloud_html = wordcloud_html, save = False)
+
+
+
+
+
+def delete_files(myid):
+    uploads_path = 'uploads'
+    extracted_path = 'uploads/extracted'
+    pickles_path = 'pickles'
+    for i in os.listdir(uploads_path):
+        if os.path.isfile(os.path.join(uploads_path,i)) and str(myid) in i:
+            os.remove(i)
+
+    for i in os.listdir(extracted_path):
+        if os.path.isfile(os.path.join(extracted_path,i)) and str(myid) in i:
+            os.remove(i)
+
+    for i in os.listdir(pickles_path):
+        if os.path.isfile(os.path.join(pickles_path,i)) and str(myid) in i:
+            os.remove(i)
+
+
+
+
+@app.route('/history')
+def history():
+    current_username  = current_user.username
+    user = User.query.filter_by(username=current_username).first()
+    user_id = user.id
+    single_files = Single_Upload.query.filter_by(user_id=user_id)
+    group_files = Group_Upload.query.filter_by(user_id=user_id)
+
+    return render_template('history.html', title='History', single_files = single_files, group_files = group_files)
+
+
+
+@app.route('/history_single/<container_name>')
+@login_required
+def history_single(container_name):
+    single_file = Single_Upload.query.filter_by(container_name=container_name).first()
+    block_blob_service = BlockBlobService(account_name='mednlpstorage', account_key='v+IgtNIIRhZjqMZx+e886rhJMVAhIUoUfG252SVIftBCyx8bG+NE0apP20xakOsMRQfNZFbUggUUULN2JER8lg==')
+
+
+    if not os.path.exists('uploads'):
+        os.makedirs('uploads')
+
+    save_path = os.path.join('uploads', single_file.file_name_long_with_extension)
+
+    block_blob_service.get_blob_to_path(single_file.container_name, single_file.file_name_long_with_extension, save_path)
+
+
+    text, tokens, keywords = extract(save_path)
+
+    keywords_path = "pickles/keywords_" + str(myid) + '.p'
+
+    pickle.dump( keywords, open( keywords_path, "wb" ) )
+
+    graph_data = frequency_dist(keywords, 26, ('Word frequency for file  with filename: ' + single_file.file_name_short_with_extension))
+
+    
+
+    wordcloud_html = build_word_cloud(text, 2000)
+
+    wordcloud_html_path = "pickles/wordcloud_html_" + str(myid) + '.p'
+
+    pickle.dump(wordcloud_html, open( wordcloud_html_path, "wb" ) )
+
+    
+
+    stop_words_form = StopWordsForm()
+
+
+    session['title'] = 'Single file NLP analysis'
+
+
+
+    return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, stop_words_form = stop_words_form, wordcloud_html = wordcloud_html, save = False)
+
+
+
+
+
+@app.route('/history_group/<container_name>')
+@login_required
+def history_group(container_name):
+    group_file = Group_Upload.query.filter_by(container_name=container_name).first()
+    block_blob_service = BlockBlobService(account_name='mednlpstorage', account_key='v+IgtNIIRhZjqMZx+e886rhJMVAhIUoUfG252SVIftBCyx8bG+NE0apP20xakOsMRQfNZFbUggUUULN2JER8lg==')
+
+    if not os.path.exists('uploads'):
+        os.makedirs('uploads')
+
+    #directory_path = os.path.join('uploads', group_file.container_name)
+
+
+    total_text_path = 'pickles/total_text_'+ str(myid) + '.p'
+    file_names_path = 'pickles/file_names_'+ str(myid) + '.p'
+    pyldavis_html_path = "pickles/pyldavis_html_"  + str(myid) + '.p'
+    lda_html_path = "pickles/lda_html_" + str(myid) + '.p'
+    lda_model_path = "pickles/lda_model_" + str(myid) + '.p'
+    document_term_matrix_path = "pickles/document_term_matrix_" + str(myid) + '.p'
+    cvectorizer_path = "pickles/cvectorizer_" + str(myid) + '.p'
+   
+
+
+    block_blob_service.get_blob_to_path(group_file.container_name, 'total_text.p' , total_text_path)
+    block_blob_service.get_blob_to_path(group_file.container_name, 'vectorizer.p' , cvectorizer_path)
+    block_blob_service.get_blob_to_path(group_file.container_name, 'dtm.p' ,  document_term_matrix_path)
+    block_blob_service.get_blob_to_path(group_file.container_name, 'file-names.p' ,  file_names_path)
+    block_blob_service.get_blob_to_path(group_file.container_name, 'lda-model.p' ,  lda_model_path)
+    block_blob_service.get_blob_to_path(group_file.container_name, 'lda-html.p' , lda_html_path)
+    block_blob_service.get_blob_to_path(group_file.container_name, 'pyldavis-html.p' ,   pyldavis_html_path)
+
+
+    lda_html = pickle.load( open(lda_html_path, "rb" ) )
+    pyldavis_html = pickle.load( open(pyldavis_html_path, "rb" ) )
+    
+
+
+    topic_number_form = inputTopicNumber()
+    return render_template('bulk_analysis.html', title = 'Clustering analysis',lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html, save = False)
 
 
 

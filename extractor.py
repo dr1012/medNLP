@@ -9,8 +9,6 @@ from main import myid
 
 
 
-nltk.download('punkt')
-
 def extract(filename):
     file_name_string = filename.split(".")
     file_format = file_name_string[-1]
@@ -78,12 +76,18 @@ def pdf_extract(filename):
     else:
         raise Exception('The system cannot extract text from this file!')
     
+    pdfFileObj.close()
+
+
     return text
         
 
 def text_extract(filename):
     file = open(filename, 'r', errors = 'ignore') 
-    return file.read()
+    file_text = file.read()
+    file.close()
+    return file_text
+    
   
 
 
@@ -92,6 +96,6 @@ def doc_extract(filename):
     fullText = []
     for para in doc.paragraphs:
         fullText.append(para.text)
-    return '\n'.join(fullText)
 
- 
+
+    return '\n'.join(fullText)

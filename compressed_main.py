@@ -98,6 +98,12 @@ def handle_compressed_file(file_path,compressed_file_name):
 
     compressed_file_name_without_extension_uuid = compressed_file_name_without_extension + "_" + str(myid)
 
+    compressed_file_name_uuid = compressed_file_name + "_" + str(myid)
+
+    session['compressed_file_name'] = compressed_file_name
+    session['compressed_file_name_without_extension'] = compressed_file_name_without_extension
+    session['compressed_file_name_without_extension_uuid'] = compressed_file_name_without_extension_uuid
+    session['compressed_file_name_uuid'] = compressed_file_name_uuid
     
     totalvocab_stemmed = []
     totalvocab_tokenized = []
@@ -113,5 +119,3 @@ def handle_compressed_file(file_path,compressed_file_name):
         file_names.append(filename)
 
     return total_text, totalvocab_stemmed, totalvocab_tokenized,  file_names
-
-

@@ -3,6 +3,8 @@
 from main import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
+from sqlalchemy import Column, Integer, DateTime
+from sqlalchemy.sql import func
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -20,28 +22,23 @@ class User(UserMixin, db.Model):
 
 
 class Single_Upload(db.Model):
-    file_id = db.Column(db.Integer, primary_key=True)
-    file_name = db.Column(db.String(64))
-    date_created = db.Column(db.TIMESTAMP())
-    text_path = db.Column(db.String(256))
+    container_name = db.Column(db.String(256), primary_key=True)
+    file_name_short_with_extension = db.Column(db.String(256))
+    file_name_long_with_extension = db.Column(db.String(256))
+    date_created = db.Column(db.DateTime, default=func.now())
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
 
     def __repr__(self):
-        return '<File Name {}>'.format(self.file_name)
+        return '<File Name {}>'.format(self.file_name_short_with_extension)
 
 
 class Group_Upload(db.Model):
-    upload_id = db.Column(db.Integer, primary_key=True)
-    file_name = db.Column(db.String(64))
-    date_created = db.Column(db.TIMESTAMP())
-    total_text_path = db.Column(db.String(256))
+    container_name = db.Column(db.String(256), primary_key=True)
+    compressed_file_name_short_with_extension = db.Column(db.String(256))
+    date_created = db.Column(db.DateTime, default=func.now())
+    compressed_file_name_long_with_extension = db.Column(db.String(256))
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    vectorizer_path = db.Column(db.String(256))
-    dtm_path = db.Column(db.String(256))
-    file_names_path = db.Column(db.String(256))
-    lda_model_path = db.Column(db.String(256))
-    lda_html_path =  db.Column(db.String(256))
-    pyldavis_html_path =  db.Column(db.String(256))
+    
 
     def __repr__(self):
-        return '<File Name {}>'.format(self.file_name)
+        return '<File Name {}>'.format(self.compressed_file_name_short_with_extension)
