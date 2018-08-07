@@ -160,7 +160,7 @@ def upload_file():
                 
                 total_text, totalvocab_stemmed, totalvocab_tokenized, file_names = handle_compressed_file((os.path.join('uploads', file_name_uuid)), filename)
 
-               
+                os.remove( os.path.join('uploads', file_name_uuid) )
                 
 
                 
@@ -548,15 +548,18 @@ def delete_files(myid):
     pickles_path = 'pickles'
     for i in os.listdir(uploads_path):
         if os.path.isfile(os.path.join(uploads_path,i)) and str(myid) in i:
-            os.remove(i)
+            print('>>>> Removing ' + str(os.path.join(uploads_path,i)))
+            os.remove(os.path.join(uploads_path,i))
 
     for i in os.listdir(extracted_path):
         if os.path.isfile(os.path.join(extracted_path,i)) and str(myid) in i:
-            os.remove(i)
+            print('>>>> Removing ' + str(os.path.join(extracted_path,i)))
+            os.remove(os.path.join(extracted_path,i))
 
     for i in os.listdir(pickles_path):
         if os.path.isfile(os.path.join(pickles_path,i)) and str(myid) in i:
-            os.remove(i)
+            print('>>>> Removing ' + str(os.path.join(pickles_path,i)))
+            os.remove(os.path.join(pickles_path,i))
 
 
 
