@@ -108,7 +108,12 @@ def delete_all():
     for x in single_files:
         container_name = x.container_name
         block_blob_service.delete_container(container_name)
+        db.session.delete(x)
 
     for x in group_files:
         container_name = x.container_name
         block_blob_service.delete_container(container_name)
+        db.session.delete(x)
+
+    db.session.commit()
+    

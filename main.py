@@ -94,6 +94,8 @@ def allowed_file(filename):
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
 
+    session['save'] = True
+
     if request.method == 'POST':
         # check if the post request has the file part
         if 'document' not in request.files:
@@ -114,14 +116,15 @@ def upload_file():
 
             file_name_no_extension = filename.rsplit('.', 1)[0].lower()
 
-            if len(file_name_no_extension)<3:
-                file_name_no_extension = file_name_no_extension + 'xxx'
-                filename  =  file_name_no_extension + '.' + file_extension
-
+        
             if len(file_name_no_extension)>28:
                 file_name_no_extension = file_name_no_extension[0:28]
                 filename  =  file_name_no_extension + '.' + file_extension
 
+
+            regex = re.compile('[^a-zA-Z0-9-_]')
+    
+            file_name_no_extension = regex.sub('', file_name_no_extension)
             if not os.path.exists('uploads'):
                 os.makedirs('uploads')
 
@@ -186,7 +189,7 @@ def upload_file():
         
              
 
-                return render_template('bulk_analysis.html', title = 'Clustering analysis', lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html, save = True )
+                return render_template('bulk_analysis.html', title = 'Clustering analysis', lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html)
             
             session['single_file_name_short_no_extension'] = file_name_no_extension
             session['single_file_name_uuid_long_no_extension'] = file_name_uuid_no_extension
@@ -221,7 +224,7 @@ def upload_file():
             session['title'] = 'Single file NLP analysis'
       
             
-            return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, wordcloud_html = wordcloud_html,  stop_words_form = stop_words_form, save = True)
+            return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, wordcloud_html = wordcloud_html,  stop_words_form = stop_words_form)
         
    
         else:
@@ -270,7 +273,7 @@ def submit():
 
         stop_words_form = StopWordsForm()
     
-        return render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, wordcloud_html = wordcloud_html,  stop_words_form = stop_words_form, save = True)
+        return render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, wordcloud_html = wordcloud_html,  stop_words_form = stop_words_form)
 
 #https://stackoverflow.com/questions/47368054/wtforms-test-whether-field-is-filled-out
 def is_filled(data):
@@ -334,7 +337,7 @@ def submit_number_topics():
         pickle.dump( lda_html, open( lda_html_path, "wb" ) )
 
         topic_number_form = inputTopicNumber()
-        return render_template('bulk_analysis.html', title = 'Clustering analysis',lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html, save = True )
+        return render_template('bulk_analysis.html', title = 'Clustering analysis',lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html)
 
 
 @app.route('/submit_stop_words', methods=['POST'])
@@ -356,7 +359,7 @@ def submit_stop_words():
             wordcloud_html = pickle.load(open(wordcloud_html_path, "rb" ) )
 
             stop_words_form = StopWordsForm()
-            return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, stop_words_form = stop_words_form, wordcloud_html = wordcloud_html, save = True)
+            return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, stop_words_form = stop_words_form, wordcloud_html = wordcloud_html)
 
 
 
@@ -487,7 +490,9 @@ def save_group():
 
     flash('Your model has been saved')
 
-    return render_template('bulk_analysis.html', title = 'Clustering analysis', lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html, save = False )
+    session['save'] = False
+
+    return render_template('bulk_analysis.html', title = 'Clustering analysis', lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html)
 
 
 
@@ -504,7 +509,7 @@ def save_single():
     
     single_file_name_uuid_long_no_extension = regex.sub('', single_file_name_uuid_long_no_extension)
 
-    single_file_path = os.path.join('uploads', single_file_name_short_with_extension)
+    single_file_path = os.path.join('uploads', single_file_name_long_with_extension)
 
 
     #https://stackoverflow.com/questions/5998245/get-current-time-in-milliseconds-in-python
@@ -529,7 +534,9 @@ def save_single():
     stop_words_form = StopWordsForm()
     flash('Your model has been saved')
 
-    return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, stop_words_form = stop_words_form, wordcloud_html = wordcloud_html, save = False)
+    session['save'] = False
+
+    return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, stop_words_form = stop_words_form, wordcloud_html = wordcloud_html)
 
 
 
@@ -555,6 +562,7 @@ def delete_files(myid):
 
 
 @app.route('/history')
+@login_required
 def history():
     current_username  = current_user.username
     user = User.query.filter_by(username=current_username).first()
@@ -576,38 +584,19 @@ def history_single(container_name):
     if not os.path.exists('uploads'):
         os.makedirs('uploads')
 
-    save_path = os.path.join('uploads', single_file.file_name_long_with_extension)
+    file_name_short_without_extension = single_file.file_name_short_with_extension.rsplit('.', 1)[0].lower()
+
+    file_extension =  single_file.file_name_short_with_extension.rsplit('.', 1)[1].lower()
+
+    mypath = file_name_short_without_extension + '_' + str(myid) + '.' + file_extension
+
+    save_path = os.path.join('uploads', mypath)
 
     block_blob_service.get_blob_to_path(single_file.container_name, single_file.file_name_long_with_extension, save_path)
 
-
-    text, tokens, keywords = extract(save_path)
-
-    keywords_path = "pickles/keywords_" + str(myid) + '.p'
-
-    pickle.dump( keywords, open( keywords_path, "wb" ) )
-
-    graph_data = frequency_dist(keywords, 26, ('Word frequency for file  with filename: ' + single_file.file_name_short_with_extension))
-
+   
     
-
-    wordcloud_html = build_word_cloud(text, 2000)
-
-    wordcloud_html_path = "pickles/wordcloud_html_" + str(myid) + '.p'
-
-    pickle.dump(wordcloud_html, open( wordcloud_html_path, "wb" ) )
-
-    
-
-    stop_words_form = StopWordsForm()
-
-
-    session['title'] = 'Single file NLP analysis'
-
-
-
-    return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, stop_words_form = stop_words_form, wordcloud_html = wordcloud_html, save = False)
-
+    return redirect(url_for('display_history_single',  save_path = save_path, file_name_short_with_extension = single_file.file_name_short_with_extension))
 
 
 
@@ -643,13 +632,91 @@ def history_group(container_name):
     block_blob_service.get_blob_to_path(group_file.container_name, 'pyldavis-html.p' ,   pyldavis_html_path)
 
 
-    lda_html = pickle.load( open(lda_html_path, "rb" ) )
-    pyldavis_html = pickle.load( open(pyldavis_html_path, "rb" ) )
+    
     
 
 
+    
+    
+    return redirect(url_for('display_history_group'))
+
+
+@app.route('/display_history_single')
+@login_required
+def display_history_single():
+    save_path = request.args['save_path']
+
+    file_name_short_with_extension = request.args['file_name_short_with_extension']
+
+
+
+    text, tokens, keywords = extract(save_path)
+
+    keywords_path = "pickles/keywords_" + str(myid) + '.p'
+
+    pickle.dump( keywords, open( keywords_path, "wb" ) )
+
+    graph_data = frequency_dist(keywords, 26, ('Word frequency for file  with filename: ' + file_name_short_with_extension))
+
+    
+
+    wordcloud_html = build_word_cloud(text, 2000)
+
+    wordcloud_html_path = "pickles/wordcloud_html_" + str(myid) + '.p'
+
+    pickle.dump(wordcloud_html, open( wordcloud_html_path, "wb" ) )
+
+    session['save'] = False
+ 
+
+    stop_words_form = StopWordsForm()
+
+    return render_template('analysis_options.html', title='Single file NLP analysis', graph_data = graph_data, stop_words_form = stop_words_form, wordcloud_html = wordcloud_html)
+
+
+
+@app.route('/display_history_group')
+@login_required
+def display_history_group():
+
+    pyldavis_html_path = "pickles/pyldavis_html_"  + str(myid) + '.p'
+    lda_html_path = "pickles/lda_html_" + str(myid) + '.p'
+
+
+    lda_html = pickle.load( open(lda_html_path, "rb" ) )
+    pyldavis_html = pickle.load( open(pyldavis_html_path, "rb" ) )
+
     topic_number_form = inputTopicNumber()
-    return render_template('bulk_analysis.html', title = 'Clustering analysis',lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html, save = False)
+
+    session['save'] = False
+
+    return render_template('bulk_analysis.html', title = 'Clustering analysis',lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html)
+
+@app.route('/delete_all')
+@login_required
+def delete_all():
+    blob_upload.delete_all()
+    delete_files(str(myid))
+
+
+    flash('All your files have been deleted')
+
+
+
+    current_username  = current_user.username
+    user = User.query.filter_by(username=current_username).first()
+    user_id = user.id
+    single_files = Single_Upload.query.filter_by(user_id=user_id)
+    group_files = Group_Upload.query.filter_by(user_id=user_id)
+
+    return render_template('history.html', title='History', single_files = single_files, group_files = group_files)
+
+ 
+
+
+
+
+
 
 
 
