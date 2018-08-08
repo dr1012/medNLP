@@ -5,25 +5,24 @@
 
 
 import os
-import argparse
 import time
-from sklearn.decomposition import LatentDirichletAllocation
+#from sklearn.decomposition import LatentDirichletAllocation
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.manifold import TSNE
 import bokeh.plotting as bp
-from bokeh.plotting import save, output_file, show
 from bokeh.models import HoverTool
 from bokeh.resources import CDN
 from bokeh.embed import file_html
 import random
-from bokeh.embed import components
 from flask import session
 import pandas as pd
 from stopwords import stop_word_list
 import pickle
 import lda
-from main import myid
+import flask
+from config import Config
+myid = Config.myid
 
 
 def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
@@ -205,8 +204,7 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
 
     print ('\n>>> whole process done; took {} mins\n'.format((t7 - t0) / 60.))
 
-    #output_file("TSNE_OUTPUT.html", title="TTSNE OUTPUT")
-    #show(plot_lda)
+    
 
     html = file_html(plot_lda, CDN)
     

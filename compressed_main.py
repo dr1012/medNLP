@@ -5,9 +5,10 @@ from stopwords import stop_word_list
 from nltk.stem.snowball import SnowballStemmer
 import spacy
 import rarfile
-import tarfile
 from flask import session
-from main import myid
+import flask
+from config import Config
+myid = Config.myid
 
 
 nlp = spacy.load('en_core_web_sm')

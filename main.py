@@ -1,11 +1,21 @@
-from flask import render_template, Flask, flash, redirect, request, url_for, send_from_directory, make_response, session
+from flask import render_template, Flask, flash, redirect, request, url_for, session
 import uuid
 from flask_session import Session
-an_id = str(uuid.uuid4())
-myid =  an_id[:8] + an_id[24:]
-
 from config import Config
 import flask
+from flask_sqlalchemy import SQLAlchemy
+
+
+app = Flask(__name__)
+app.config.from_object(Config)
+app.secret_key = 'A_g_reat-fuck_ing-secret'
+
+db = SQLAlchemy(app)
+
+myid = Config.myid
+
+
+
 
 from werkzeug.utils import secure_filename
 import os
@@ -13,22 +23,19 @@ from extractor import extract, simple_parse
 from frequency_distribution import frequency_dist
 from mywordcloud import build_word_cloud
 import matplotlib
-matplotlib.use('Agg')
+
 import matplotlib.pyplot as plt
-import urllib.parse
 import time
 from lda_tsne_model2 import lda_tsne
 from compressed_main import handle_compressed_file
 
-import json
 import pickle
 from mypyldavis import pyldavis_run
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_sqlalchemy import SQLAlchemy
+
 from werkzeug.urls import url_parse
-from flask_socketio import SocketIO, emit
-import shutil
+
 from azure.storage.blob import BlockBlobService, PublicAccess
 import re
 
@@ -39,12 +46,7 @@ import re
 #flask-session
 #pickle
 
-app = Flask(__name__)
-app.config.from_object(Config)
-app.secret_key = 'A_g_reat-fuck_ing-secret'
 
-db = SQLAlchemy(app)
-socketio = SocketIO(app)
 
 # at initialization, write code that creates uplaods/pickles folders
 
@@ -67,19 +69,6 @@ login_settings.login_view = 'login_form'
 
 db.create_all()
 
-
-@socketio.on('disconnect')
-def disconnect_user():
-   # if current_user.is_anonymous:
-    #    delete_files(myid)
-    print('DISCONNECT')
-
-
-@socketio.on('connect')
-def connect_user():
-    print('CONNECT')
-
-   
 
 
 
@@ -125,12 +114,13 @@ def upload_file():
             regex = re.compile('[^a-zA-Z0-9-_]')
     
             file_name_no_extension = regex.sub('', file_name_no_extension)
+
             if not os.path.exists('uploads'):
                 os.makedirs('uploads')
 
             file_name_uuid = str(file_name_no_extension) + '_' +  str(myid) + '.' + file_extension
             file_name_uuid_no_extension = str(file_name_no_extension) + '_' +  str(myid)
-            # saved as 'filename_<uuid>.txt
+            
             file.save(os.path.join('uploads', file_name_uuid))
 
             session['single_file_path'] = os.path.join('uploads', file_name_uuid)
@@ -169,6 +159,7 @@ def upload_file():
                 if len(file_names)<4:
                     flash('At least 4 files in the compressed folder are required')
                     return redirect(url_for('upload_file'))
+
                 lda_html = lda_tsne(total_text, file_names)
                 topic_number_form = inputTopicNumber()
 
@@ -724,5 +715,4 @@ def delete_all():
 
 
 if __name__ == '__main__':
-    #app.run(debug=True)
-    socketio.run(app)
+    app.run(debug=True)

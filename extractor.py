@@ -1,11 +1,11 @@
 import PyPDF2 
 from nltk.tokenize import word_tokenize
 from stopwords import stop_word_list
-import tqdm
 import docx
 import nltk
-from flask import session
-from main import myid
+import flask
+from config import Config
+myid = Config.myid
 
 
 

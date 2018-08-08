@@ -1,20 +1,7 @@
-import pandas as pd
-pd.options.mode.chained_assignment = None 
-import numpy as np
-import re
-import nltk
-import io
-import base64
-from gensim.models import word2vec
 
-from sklearn.manifold import TSNE
-import matplotlib
-
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt, mpld3
 from stopwords import stop_word_list
 
-import time
 
 from wordcloud import WordCloud, STOPWORDS
 
