@@ -207,6 +207,12 @@ def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
     
 
     html = file_html(plot_lda, CDN)
+
+    raw_topic_summaries_path = "pickles/raw_topic_summaries" + str(myid) + '.p'
+    lda_keys_path = "pickles/lda_keys_path" + str(myid) + '.p'
+
+    pickle.dump( raw_topic_summaries, open( raw_topic_summaries_path, "wb" ) )
+    pickle.dump( _lda_keys, open( lda_keys_path, "wb" ) )
     
-    
+
     return html

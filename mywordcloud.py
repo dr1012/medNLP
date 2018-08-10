@@ -1,5 +1,7 @@
-
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt, mpld3
+
 from stopwords import stop_word_list
 
 

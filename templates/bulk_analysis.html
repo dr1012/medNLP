@@ -35,8 +35,45 @@
             <a  class="nav-item nav-link" id="nav-contact-tab" data-toggle="tab" href="#nav-contact" role="tab" aria-controls="nav-contact"
                 aria-selected="false">pyLDAvis </a>
                 &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;
-                &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;
-                &nbsp;&emsp;&emsp;
+                &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;
+
+
+                {% if not session['download'] %}
+
+                &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;
+                &nbsp;&emsp;&emsp;&emsp;
+
+
+                {% endif %}
+
+                {% if not session['save'] %}
+
+                &emsp;&emsp;&emsp;&emsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+                {% endif %}
+
+
+                
+                {% if session['download'] %}
+              
+
+         
+                    
+                    <form action="{{ url_for('download_docs') }}">
+                        <button type="submit" name="Submit" class="btn btn-info" style="color:white; background-color:rgb(19, 19, 206)"> Download clustered documents </button>
+                    </form>
+
+
+
+
+
+           
+                {% endif %}
+                
+                
+
+                
+                &emsp;&emsp;
                 {% if not current_user.is_anonymous %}
                 {% if session['save'] %}
               
@@ -55,6 +92,8 @@
                 {% endif %}
                 {% endif %}
 
+
+
         </div>
     </nav>
 
@@ -68,7 +107,7 @@
         <style type="text/css">
             .alert {
                 width: 100%;
-                height: 4%;
+                height: 5%;
             }
         </style>
     </div>

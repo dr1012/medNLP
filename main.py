@@ -1,30 +1,37 @@
-from flask import render_template, Flask, flash, redirect, request, url_for, session
+from flask import render_template, Flask, flash, redirect, request, url_for, session, send_file
 import uuid
 from flask_session import Session
 from config import Config
 import flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_socketio import SocketIO, emit
+import os
+from shutil import copyfile
 
+app = Config.app
 
-app = Flask(__name__)
 app.config.from_object(Config)
+
 app.secret_key = 'A_g_reat-fuck_ing-secret'
 
-db = SQLAlchemy(app)
+basedir = os.path.abspath(os.path.dirname(__file__))
+SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+    'sqlite:///' + os.path.join(basedir, 'app.db')
+SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+db = Config.db
 
 myid = Config.myid
 
-
+socketio = SocketIO(app)
 
 
 from werkzeug.utils import secure_filename
-import os
+
 from extractor import extract, simple_parse
 from frequency_distribution import frequency_dist
 from mywordcloud import build_word_cloud
-import matplotlib
 
-import matplotlib.pyplot as plt
 import time
 from lda_tsne_model2 import lda_tsne
 from compressed_main import handle_compressed_file
@@ -39,21 +46,14 @@ from werkzeug.urls import url_parse
 from azure.storage.blob import BlockBlobService, PublicAccess
 import re
 
-#gevent
-#flask-login
-#flask_sqlalchemy
-#flask_socketio
-#flask-session
-#pickle
-
-
-
-# at initialization, write code that creates uplaods/pickles folders
 
 
 from models import User, Single_Upload, Group_Upload
 from forms import LoginForm, UploadFileForm, inputText, inputTopicNumber, StopWordsForm, RegisterForm, EditAccountForm
 import blob_upload
+import atexit
+import zipfile
+import shutil
 
 UPLOAD_FOLDER = '/uploads'
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'zip','rar', 'docx'])
@@ -69,8 +69,25 @@ login_settings.login_view = 'login_form'
 
 db.create_all()
 
+if not os.path.exists('uploads'):
+    os.makedirs('uploads')
+if not os.path.exists('pickles'):
+    os.makedirs('pickles')
 
 
+def check_exit():
+    print('>>>>>>>>>>>   EXIT   <<<<<<<<<<<<<,')
+
+atexit.register(check_exit)
+
+
+@socketio.on('connect')
+def test_connect():
+    print('>>>>>>>>>>>   CONNECTED   <<<<<<<<<<<<<,')
+
+@socketio.on('disconnect')
+def test_disconnect():
+    print('>>>>>>>>>>>   DISCONNECTED   <<<<<<<<<<<<<,')
 
 
 
@@ -115,8 +132,7 @@ def upload_file():
     
             file_name_no_extension = regex.sub('', file_name_no_extension)
 
-            if not os.path.exists('uploads'):
-                os.makedirs('uploads')
+           
 
             file_name_uuid = str(file_name_no_extension) + '_' +  str(myid) + '.' + file_extension
             file_name_uuid_no_extension = str(file_name_no_extension) + '_' +  str(myid)
@@ -178,7 +194,7 @@ def upload_file():
                 pickle.dump( lda_html, open( lda_html_path, "wb" ) )
 
         
-             
+                session['download'] =  True
 
                 return render_template('bulk_analysis.html', title = 'Clustering analysis', lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html)
             
@@ -263,6 +279,8 @@ def submit():
         
 
         stop_words_form = StopWordsForm()
+
+        session['save'] = False
     
         return render_template('analysis_options.html', title='NLP analysis', graph_data = graph_data, wordcloud_html = wordcloud_html,  stop_words_form = stop_words_form)
 
@@ -683,6 +701,7 @@ def display_history_group():
     topic_number_form = inputTopicNumber()
 
     session['save'] = False
+    session['download'] = False
 
     return render_template('bulk_analysis.html', title = 'Clustering analysis',lda_html = lda_html, number_form = topic_number_form, pyldavis_html = pyldavis_html)
 
@@ -705,14 +724,57 @@ def delete_all():
 
     return render_template('history.html', title='History', single_files = single_files, group_files = group_files)
 
- 
 
 
+@app.route('/download_docs')
+def download_docs():
 
 
+    
+    raw_topic_summaries_path = "pickles/raw_topic_summaries" + str(myid) + '.p'
+    lda_keys_path = "pickles/lda_keys_path" + str(myid) + '.p'
 
+    raw_topic_summaries = pickle.load( open(raw_topic_summaries_path, "rb" ) )
+    lda_keys =  pickle.load( open(lda_keys_path, "rb" ) )
+
+    
+    original_directory = session['compressed_file_name_without_extension_uuid'] 
+    print(original_directory)
+   
+
+    if not os.path.exists('download_file'):
+        os.makedirs('download_file')
+    
+    
+    for x in raw_topic_summaries:
+        x = x.replace(' ','-')
+        path = os.path.join('download_file', str(x))
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+    count = 0
+    for filename in os.listdir(os.path.join('uploads/extracted', str(original_directory))):
+        src_path = os.path.join('uploads/extracted/'+ str(original_directory), filename)
+        y = raw_topic_summaries[count]
+        y = y.replace(' ', '-')
+        dst = os.path.join('download_file' , y)
+        dst = os.path.join(dst, filename)
+        count = count + 1
+        copyfile(src_path, dst)
+
+    output_filename = 'classified_output' + str(myid)
+
+    zip_path = os.path.join('uploads',  output_filename)
+
+    shutil.make_archive(zip_path, 'zip', 'download_file')
+
+    shutil.rmtree('download_file')
+
+    return send_file(zip_path + '.zip' , as_attachment=True, attachment_filename = 'classified_output.zip')
 
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    #app.run(debug=True)
+    #app.run(host='0.0.0.0', port=80)
+    socketio.run(app, host='0.0.0.0', port=80, log_output = True)

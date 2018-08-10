@@ -1,6 +1,7 @@
 
 ####    https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-v-user-logins
-from main import db
+from config import Config
+db = Config.db
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from sqlalchemy import Column, Integer, DateTime
