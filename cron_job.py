@@ -5,6 +5,11 @@ import sys
 
 
 def delete_daily():
+    '''
+    This method is called once a day. It deletes any file in the the 'uploads', 'uploads/extracted' and 'pickles' directories that is older than 24 hours.
+    This makes sure that no user files remain on the system.
+
+    '''
 
     print()
     print('>>>>>>>>>>>>>> CRON JOB CALLED <<<<<<<<<<<<', file=sys.stdout)
