@@ -2,9 +2,7 @@ import os, uuid, sys
 from azure.storage.blob import BlockBlobService, PublicAccess
 from flask_login import current_user
 from models import Single_Upload, User, Group_Upload
-from config import Config
-
-db = Config.db
+from database import db
 
 #https://github.com/Azure-Samples/storage-blobs-python-quickstart
 

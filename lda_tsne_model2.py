@@ -21,11 +21,13 @@ from stopwords import stop_word_list
 import pickle
 import lda
 import flask
-from config import Config
-myid = Config.myid
+from flask import session
+
 
 
 def lda_tsne(total_text, file_names, n_topics = None, n_top_words = None):
+
+    myid =  session['myid']
 
     n_data = len(file_names)
 

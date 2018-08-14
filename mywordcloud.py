@@ -35,8 +35,9 @@ def build_word_cloud(token_list, n):
     plt.axis('off')
     plt.margins(x=0, y=0)
     
-    html = mpld3.fig_to_html(fig, no_extras=True)
+    html = mpld3.fig_to_html(fig, no_extras=True, template_type='general')
 
+ 
 
     return html
 

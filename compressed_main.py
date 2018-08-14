@@ -7,8 +7,8 @@ import spacy
 import rarfile
 from flask import session
 import flask
-from config import Config
-myid = Config.myid
+
+
 
 
 nlp = spacy.load('en_core_web_sm')
@@ -43,6 +43,8 @@ def  tokenize_and_stem(text):
 
 #https://code.tutsplus.com/tutorials/compressing-and-extracting-files-in-python--cms-26816
 def decompress(file_path, compressed_file_name):
+
+    myid =  session['myid']
 
     compressed_file_name_without_extension = compressed_file_name.split('.')[0]
 
@@ -93,6 +95,7 @@ def decompress(file_path, compressed_file_name):
 
 
 def handle_compressed_file(file_path,compressed_file_name):
+    myid =  session['myid']
     decompress(file_path, compressed_file_name)
 
     compressed_file_name_without_extension = compressed_file_name.split('.')[0]

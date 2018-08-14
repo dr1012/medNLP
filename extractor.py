@@ -4,12 +4,13 @@ from stopwords import stop_word_list
 import docx
 import nltk
 import flask
-from config import Config
-myid = Config.myid
+from flask import session
+
 
 
 
 def extract(filename):
+    myid =  session['myid']
     file_name_string = filename.split(".")
     file_format = file_name_string[-1]
 
