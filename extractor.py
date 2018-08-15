@@ -9,7 +9,26 @@ from flask import session
 
 
 
+
 def extract(filename):
+    '''
+    Extracts text from a given file and parses it.
+
+    Parameters
+    ----------
+    filename : str
+        Path of file in the filing system.
+
+    Returns
+    ----------
+    text : str
+        The raw text from the file. 
+    tokens : list
+        A list of the tokens from the raw text. 
+    keywords : list
+        A list of the tokens which are not a space, stop words, punctuation or special character.
+
+    '''
     myid =  session['myid']
     file_name_string = filename.split(".")
     file_format = file_name_string[-1]
@@ -32,8 +51,34 @@ def extract(filename):
 
     return simple_parse(text)
 
-
+###########################################################################################################################
+# This method has been adapted from the following source:
+# Link: https://medium.com/@rqaiserr/how-to-convert-pdfs-into-searchable-key-words-with-python-85aab86c544f
+# Author: Rizwan Qaiser
+# Date: 12/05/2017
+#############################################################################################################################
 def simple_parse(text):
+
+    '''
+    Tokenizes the input text and returns the raw text, a list of tokens and a list of 'keywords'.
+    Keywords are tokens which are not punctuation, stop words, spaces or special characters.
+
+    Parameters
+    ----------
+    text : str
+        Raw text to be tokenized. 
+
+    Returns
+    ----------
+    text : str
+        The raw text from the file. 
+    tokens : list
+        A list of the tokens from the raw text. 
+    keywords : list
+        A list of the tokens which are not a space, stop words, punctuation or special character.
+
+
+    '''
 
     text = text.lower()
     stop_words = stop_word_list()
@@ -48,14 +93,30 @@ def simple_parse(text):
     return text, tokens, keywords
 
 
+###########################################################################################################################
+# This method has been adapted from the following source:
+# Link: https://medium.com/@rqaiserr/how-to-convert-pdfs-into-searchable-key-words-with-python-85aab86c544f
+# Author: Rizwan Qaiser
+# Date: 12/05/2017
+#############################################################################################################################
 
 def pdf_extract(filename):
 
-    #write a for-loop to open many files -- leave a comment if you'd #like to learn how
+    '''
+    Extracts raw text from a pdf document. 
+    Note, this will not work if it is not an annotated pdf, this does not provide OCR capabilities. 
+
+    Parameters
+    ----------
+    filename : str
+        Path to pdf file.
+
+    Returns
+    ----------
+    text : str
+        The raw text from the pdf file. 
+    '''
    
-    
-
-
     #open allows you to read the file
     pdfFileObj = open(filename,'rb')
     #The pdfReader variable is a readable object that will be parsed
@@ -83,7 +144,21 @@ def pdf_extract(filename):
     return text
         
 
+
 def text_extract(filename):
+    '''
+    Extracts text from a txt file. 
+
+    Parameters
+    ----------
+    filename : str
+        Path to txt file.
+
+    Returns
+    ----------
+    file_text : str
+        The raw text from the txt file. 
+    '''
     file = open(filename, 'r', errors = 'ignore') 
     file_text = file.read()
     file.close()
@@ -92,7 +167,26 @@ def text_extract(filename):
   
 
 
+###########################################################################################################################
+# This method has been adapted from the following source:
+# Link: https://stackoverflow.com/questions/25228106/how-to-extract-text-from-an-existing-docx-file-using-python-docx
+# Author: Chinmoy Panda
+# Date: 08/03/2016
+#############################################################################################################################
 def doc_extract(filename):
+    '''
+    Extracts text from a docx (word document) file. 
+
+    Parameters
+    ----------
+    filename : str
+        Path to docx file.
+
+    Returns
+    ----------
+    The raw text from the docx file. 
+    '''
+
     doc = docx.Document(filename)
     fullText = []
     for para in doc.paragraphs:

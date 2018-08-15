@@ -4,8 +4,19 @@ import pygal
 
 def  frequency_dist(data, n, title,stopwords = None):
 
-    #data should be a list of words
-    #n is number of most common words
+    '''
+    Computes the word-frequency distribution graph and returns a base 64 encoded data uri version of it.
+    
+
+    Parameters
+    ----------
+    data : list
+        List of text tokens.
+
+    Returns
+    ----------
+    Word-frequency distribution graph in base 64 encoded data uri.
+    '''
 
     if stopwords is not None:
         data = [x for x in data if not x in stopwords]
@@ -21,12 +32,6 @@ def  frequency_dist(data, n, title,stopwords = None):
         words_ordered.append(word[0])
         frequencies_ordered.append(word[1])
 
-
-
-
-    line_chart = pygal.Bar()
-    line_chart.title = 'Word frequency'
-    line_chart.x_labels = words_ordered
 
     line_chart = pygal.HorizontalBar()
     line_chart.title = title
